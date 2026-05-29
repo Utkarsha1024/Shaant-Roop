@@ -1,0 +1,33 @@
+# Frontend .dockerignore
+# Prevents large/unnecessary directories from entering the Docker build context.
+# This is critical for Next.js — node_modules and .next can be gigabytes.
+
+# Dependencies (Stage 1 runs 'npm ci' fresh inside the container)
+node_modules/
+
+# Previous build output (Stage 1 runs 'npm run build' inside the container)
+.next/
+
+# Env files — NEXT_PUBLIC_* must be supplied as --build-arg at image build time,
+# not baked in from a local file. Runtime secrets go in docker-compose environment:.
+.env
+.env.*
+!.env.example
+
+# OS / editor noise
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/
+
+# Git
+.git/
+.gitignore
+
+# Docker meta
+Dockerfile
+.dockerignore
+
+# Test / CI artefacts
+coverage/
+*.test.*

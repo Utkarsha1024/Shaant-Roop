@@ -1,0 +1,17 @@
+# Security and Credentials
+.env
+
+# Target directory (Maven build)
+target/
+
+# IDE files
+.idea/
+*.iml
+.classpath
+.project
+.settings/
+.vscode/
+
+# OS specific files
+.DS_Store
+Thumbs.db

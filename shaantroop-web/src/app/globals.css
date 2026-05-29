@@ -1,0 +1,143 @@
+@import "tailwindcss";
+
+@theme {
+  /* ═══════════════════════════════════════════════════════
+     SHAANT ROOP — HIGH-CONTRAST BRAND PALETTE
+     Source: logo.jpg — deep forest green + warm gold
+
+     Light surfaces  → cream / parchment
+     Body text       → near-black slate-brown   (#1C1207)
+     Accent sections → deep green bg + gold text
+     Buttons         → green primary / gold secondary
+  ═══════════════════════════════════════════════════════ */
+
+  /* ── Surfaces ────────────────────────────────────────── */
+  --color-surface-0:   #FFFDF7;   /* page background   */
+  --color-surface-1:   #F8F2E6;   /* card / section bg */
+  --color-surface-2:   #EFE4CC;   /* raised card       */
+  --color-surface-3:   #E2D0AE;   /* border / divider  */
+
+  /* ── Text ────────────────────────────────────────────── */
+  --color-text-primary:   #1C1207;  /* headings, body     */
+  --color-text-secondary: #3D2E18;  /* sub-text           */
+  --color-text-muted:     #6B5537;  /* captions, labels   */
+  --color-text-disabled:  #9C836A;  /* placeholder        */
+
+  /* ── Forest Green — brand primary ───────────────────── */
+  --color-green-50:  #EEF4EC;
+  --color-green-100: #CDE0C9;
+  --color-green-200: #9EC49A;
+  --color-green-300: #6DA669;
+  --color-green-400: #458841;
+  --color-green-500: #2D6B2A;   /* mid accent          */
+  --color-green-600: #1E5021;   /* button bg           */
+  --color-green-700: #174019;   /* button hover        */
+  --color-green-800: #0F2B10;   /* section bg          */
+  --color-green-900: #081508;   /* footer bg           */
+
+  /* ── Gold — brand accent ─────────────────────────────── */
+  --color-gold-100: #FEF4CA;
+  --color-gold-200: #FCE27A;
+  --color-gold-300: #F9CC34;
+  --color-gold-400: #F5B800;   /* logo gold — primary accent  */
+  --color-gold-500: #C99500;   /* hover / darker gold         */
+  --color-gold-600: #9E7200;   /* text on light bg            */
+
+  /* ── Legacy aliases (keeps existing code compiling) ─── */
+  --color-cream:      var(--color-surface-0);
+  --color-parchment:  var(--color-surface-1);
+  --color-bark:       var(--color-text-primary);
+  --color-terracotta: var(--color-green-600);   /* repurposed — no more brown accent */
+  --color-honey:      var(--color-gold-400);
+
+  /* Earth scale — kept for component backward-compat     */
+  --color-earth-50:  var(--color-surface-0);
+  --color-earth-100: var(--color-surface-1);
+  --color-earth-200: var(--color-surface-3);
+  --color-earth-300: #C4A87A;
+  --color-earth-400: var(--color-text-disabled);
+  --color-earth-500: var(--color-text-muted);
+  --color-earth-600: var(--color-text-secondary);
+  --color-earth-700: #2A1E0F;
+  --color-earth-800: var(--color-green-800);   /* ← was dark brown; now deep green */
+  --color-earth-900: var(--color-green-900);   /* ← footer; now deep green         */
+
+  /* Sage — kept for badge colours */
+  --color-sage-50:  var(--color-green-50);
+  --color-sage-100: var(--color-green-100);
+  --color-sage-200: var(--color-green-200);
+  --color-sage-300: var(--color-green-300);
+  --color-sage-400: var(--color-green-400);
+  --color-sage-500: var(--color-green-500);
+  --color-sage-600: var(--color-green-600);
+  --color-sage-700: var(--color-green-700);
+  --color-sage-800: var(--color-green-800);
+  --color-sage-900: var(--color-green-900);
+
+  /* ── Typography ──────────────────────────────────────── */
+  --font-cormorant: "Cormorant Garamond";
+  --font-inter:     "Inter";
+  --font-serif:     "Cormorant Garamond", "Georgia", serif;
+  --font-sans:      "Inter", "system-ui", sans-serif;
+
+  /* ── Spacing ─────────────────────────────────────────── */
+  --spacing-section: 5rem;
+}
+
+@layer base {
+  html {
+    scroll-behavior: smooth;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+  }
+
+  body {
+    background-color: var(--color-surface-0);
+    color: var(--color-text-primary);
+    font-family: var(--font-sans);
+  }
+
+  h1, h2, h3, h4, h5, h6 {
+    font-family: var(--font-serif);
+    font-weight: 400;
+    letter-spacing: -0.02em;
+    color: var(--color-text-primary);
+  }
+
+  /* High-contrast focus ring for all interactive elements */
+  :focus-visible {
+    outline: 2px solid var(--color-gold-400);
+    outline-offset: 2px;
+    border-radius: 4px;
+  }
+}
+
+@layer utilities {
+  .text-balance { text-wrap: balance; }
+
+  .bg-blur-glass {
+    backdrop-filter: blur(16px) saturate(180%);
+    -webkit-backdrop-filter: blur(16px) saturate(180%);
+  }
+
+  /* Brand scrollbar for drawers/panels */
+  .scrollbar-brand {
+    scrollbar-width: thin;
+    scrollbar-color: var(--color-green-300) transparent;
+  }
+  .scrollbar-brand::-webkit-scrollbar        { width: 4px; }
+  .scrollbar-brand::-webkit-scrollbar-thumb  {
+    background: var(--color-green-300);
+    border-radius: 99px;
+  }
+
+  /* Reusable accent section — green bg, gold text */
+  .section-accent {
+    background-color: var(--color-green-800);
+    color: #FFFDF7;
+  }
+  .section-accent h2,
+  .section-accent h3 { color: #FFFDF7; }
+  .section-accent em  { color: var(--color-gold-400); }
+  .section-accent p   { color: rgba(255,253,247,0.82); }
+}

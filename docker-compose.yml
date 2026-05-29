@@ -1,0 +1,97 @@
+# Shaant Roop — Docker Compose
+# Spins up the full stack: PostgreSQL → Spring Boot API → Next.js Frontend
+#
+# Usage:
+#   docker compose up --build          # first run / after code changes
+#   docker compose up -d               # detached (background)
+#   docker compose down                # stop & remove containers
+#   docker compose down -v             # also remove the DB volume
+#
+# Required: copy .env.example to .env and fill in real secrets before running.
+
+services:
+
+  # ─── PostgreSQL Database ────────────────────────────────────────────
+  db:
+    image: postgres:15-alpine
+    container_name: shaantroop_db
+    restart: unless-stopped
+    env_file: .env                        # reads DB_USERNAME / DB_PASSWORD
+    environment:
+      POSTGRES_DB:       shaantroop_db
+      POSTGRES_USER:     ${DB_USERNAME}
+      POSTGRES_PASSWORD: ${DB_PASSWORD}
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    ports:
+      - "5432:5432"                       # expose for local DB tooling (e.g. DBeaver)
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${DB_USERNAME} -d shaantroop_db"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # ─── Spring Boot Backend ────────────────────────────────────────────
+  backend:
+    build:
+      context: .                          # pom.xml + src/ are at the root
+      dockerfile: Dockerfile
+      target: builder                     # Target builder stage for dev tools (maven)
+    container_name: shaantroop_backend
+    restart: unless-stopped
+    command: mvn spring-boot:run          # Run dev server directly (mvnw not found in repo)
+    env_file: .env
+    volumes:
+      - .:/app                            # Map host source code
+      - /app/target                       # Anonymous volume: protect container's build output
+      - /app/.m2                          # Anonymous volume: cache maven deps in container
+    environment:
+      # Override DB_URL so the backend finds the 'db' service instead of localhost
+      DB_URL:         jdbc:postgresql://db:5432/shaantroop_db
+      DB_USERNAME:    ${DB_USERNAME}
+      DB_PASSWORD:    ${DB_PASSWORD}
+      JWT_SECRET:     ${JWT_SECRET}
+      JWT_EXPIRATION: ${JWT_EXPIRATION}
+      ADMIN_EMAIL:    ${ADMIN_EMAIL}
+      ADMIN_PASSWORD: ${ADMIN_PASSWORD}
+      GOOGLE_CLIENT_ID: ${GOOGLE_CLIENT_ID:-}
+    ports:
+      - "8085:8085"
+    depends_on:
+      db:
+        condition: service_healthy        # waits for Postgres to be ready
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://localhost:8085/actuator/health || exit 1"]
+      interval: 20s
+      timeout: 10s
+      retries: 5
+
+  # ─── Next.js Frontend ───────────────────────────────────────────────
+  frontend:
+    build:
+      context: ./shaantroop-web
+      dockerfile: Dockerfile
+      target: builder                     # Target builder stage for dev tools (node, npm)
+      args:
+        # Bake the correct backend URL into the static bundle at image build time
+        NEXT_PUBLIC_API_URL:          http://localhost:8085
+        NEXT_PUBLIC_GOOGLE_CLIENT_ID: ${GOOGLE_CLIENT_ID:-}
+    container_name: shaantroop_frontend
+    restart: unless-stopped
+    command: npm run dev                  # Start Next.js in hot-reload mode
+    environment:
+      NODE_ENV: development
+      PORT:     3000
+    volumes:
+      - ./shaantroop-web:/app             # Map host source code
+      - /app/node_modules                 # Anonymous volume: use container's node_modules
+      - /app/.next                        # Anonymous volume: protect container's build cache
+    ports:
+      - "3000:3000"
+    depends_on:
+      backend:
+        condition: service_healthy        # waits for the API to be healthy
+
+volumes:
+  postgres_data:
+    name: shaantroop_postgres_data

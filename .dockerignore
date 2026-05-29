@@ -1,0 +1,32 @@
+# Backend .dockerignore
+# Excludes everything that the multi-stage Maven build doesn't need,
+# keeping the build context small and the image layer cache effective.
+
+# Maven build output (Stage 1 runs 'mvn clean package' inside the container)
+target/
+
+# IDE / editor artefacts
+.idea/
+.vscode/
+*.iml
+*.iws
+*.ipr
+
+# OS noise
+.DS_Store
+Thumbs.db
+
+# Git
+.git/
+.gitignore
+
+# Frontend project (not needed by the backend build)
+shaantroop-web/
+
+# Env files (secrets must be injected at runtime via docker-compose / --env-file)
+.env
+.env.*
+
+# Docker files themselves
+docker-compose.yml
+Dockerfile
