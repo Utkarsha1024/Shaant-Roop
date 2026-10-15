@@ -43,6 +43,9 @@ public class Product {
     @Column(name = "updated_at")
     private LocalDateTime updatedAt;
 
+    @Column(name = "discontinued", nullable = false)
+    private boolean discontinued = false;
+
     @PrePersist
     protected void onCreate() {
         createdAt = LocalDateTime.now();

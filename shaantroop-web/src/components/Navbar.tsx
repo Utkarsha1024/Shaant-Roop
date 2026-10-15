@@ -13,8 +13,7 @@ import GradualBlur from "@/components/GradualBlur";
 const navLinks = [
   { label: "Shop", href: "/#products" },
   { label: "Our Story", href: "/#story" },
-  { label: "Ingredients", href: "/#ingredients" },
-  { label: "Journal", href: "/#journal" },
+  { label: "Courses", href: "/courses" },
 ];
 
 export default function Navbar() {
@@ -149,28 +148,23 @@ export default function Navbar() {
           {/* ── Right: Auth + Cart ──────────────────────────────────── */}
           <div className="flex items-center gap-2 sm:gap-3">
 
-            {/* User greeting or Log In */}
+            {/* User avatar (logged in) — compact, no name text */}
             {user ? (
-              <span
-                className="hidden sm:inline-flex items-center gap-1.5 text-sm font-medium text-white"
+              <button
+                onClick={() => setSidebarOpen(true)}
+                className="hidden sm:flex items-center justify-center w-9 h-9 rounded-full transition-all duration-200 hover:scale-110 hover:ring-2 hover:ring-[--color-gold-400]/50 active:scale-95 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[--color-gold-400]"
                 style={{
+                  background: "linear-gradient(135deg, var(--color-gold-400), var(--color-gold-500))",
+                  color: "var(--color-green-900)",
                   fontFamily: "var(--font-inter), sans-serif",
-                  textShadow: "0 1px 4px rgba(0,0,0,0.3)",
+                  fontWeight: 700,
+                  fontSize: "13px",
+                  boxShadow: "0 2px 8px rgba(0,0,0,0.2)",
                 }}
+                aria-label="Open profile menu"
               >
-                {/* Avatar dot — gold on dark green */}
-                <span
-                  className="w-6 h-6 rounded-full flex items-center justify-center text-[10px] font-bold flex-shrink-0"
-                  style={{
-                    background: "var(--color-gold-400)",
-                    color: "var(--color-green-900)",
-                  }}
-                  aria-hidden="true"
-                >
-                  {user.username.charAt(0).toUpperCase()}
-                </span>
-                {user.username}
-              </span>
+                {user.email.charAt(0).toUpperCase()}
+              </button>
             ) : (
               <Link
                 href="/login"

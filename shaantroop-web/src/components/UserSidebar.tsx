@@ -117,7 +117,7 @@ export default function UserSidebar({ isOpen, onClose }: UserSidebarProps) {
                   }}
                   aria-hidden="true"
                 >
-                  {user.username.charAt(0).toUpperCase()}
+                  {user.email.charAt(0).toUpperCase()}
                 </div>
                 <p
                   className="text-base font-medium leading-tight truncate"
@@ -127,7 +127,7 @@ export default function UserSidebar({ isOpen, onClose }: UserSidebarProps) {
                     color: "var(--color-forest-800)",
                   }}
                 >
-                  {user.username}
+                  {user.email}
                 </p>
                 <p
                   className="text-xs mt-0.5 truncate"

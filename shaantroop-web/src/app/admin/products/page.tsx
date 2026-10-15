@@ -44,20 +44,45 @@ export default function AdminProductsPage() {
     fetchData();
   }, [fetchData]);
 
-  async function handleCreateProduct(data: ProductFormData) {
+  async function handleCreateProduct(data: ProductFormData, file?: File | null) {
     setIsSubmitting(true);
     try {
+      let finalImageUrl = data.imageUrl || null;
+
+      if (file) {
+        const formData = new FormData();
+        formData.append("file", file);
+
+        const token = localStorage.getItem("shaantroop_token");
+        const uploadRes = await fetch(
+          `${process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8085"}/api/upload`,
+          {
+            method: "POST",
+            headers: token ? { Authorization: `Bearer ${token}` } : {},
+            body: formData,
+          }
+        );
+
+        if (!uploadRes.ok) {
+          throw new Error("File upload failed.");
+        }
+        const uploadData = await uploadRes.json();
+        finalImageUrl = uploadData.imageUrl;
+      }
+
       const newProduct = await api.post<Product>("/api/products", {
         name: data.name,
         description: data.description,
         price: parseFloat(data.price),
         stockQuantity: parseInt(data.stockQuantity, 10),
-        imageUrl: data.imageUrl || null,
+        imageUrl: finalImageUrl,
         categoryId: parseInt(data.categoryId, 10),
         isActive: true, // always publish immediately on creation
       });
       setProducts((prev) => [newProduct, ...prev]);
       showSuccess(`"${newProduct.name}" was added successfully!`);
+    } catch (err) {
+      alert((err as Error).message ?? "Failed to create product.");
     } finally {
       setIsSubmitting(false);
     }
@@ -74,6 +99,55 @@ export default function AdminProductsPage() {
       alert((err as Error).message ?? "Failed to delete product.");
     } finally {
       setIsDeleting(null);
+    }
+  }
+
+  async function handleUpdateStock(id: number, newStock: number) {
+    const product = products.find((p) => p.id === id);
+    if (!product) return;
+    try {
+      const updatedProduct = await api.put<Product>(`/api/products/${id}`, {
+        name: product.name,
+        description: product.description,
+        price: product.price,
+        stockQuantity: newStock,
+        imageUrl: product.imageUrl,
+        categoryId: product.categoryId,
+        isActive: true,
+      });
+      setProducts((prev) =>
+        prev.map((p) => (p.id === id ? updatedProduct : p))
+      );
+      showSuccess(`Stock for "${product.name}" updated successfully.`);
+    } catch (err) {
+      alert((err as Error).message ?? "Failed to update stock.");
+    }
+  }
+
+  async function handleToggleDiscontinue(id: number, discontinued: boolean) {
+    const product = products.find((p) => p.id === id);
+    if (!product) return;
+    try {
+      const updatedProduct = await api.put<Product>(`/api/products/${id}`, {
+        name: product.name,
+        description: product.description,
+        price: product.price,
+        stockQuantity: product.stockQuantity,
+        imageUrl: product.imageUrl,
+        categoryId: product.categoryId,
+        isActive: true,
+        discontinued,
+      });
+      setProducts((prev) =>
+        prev.map((p) => (p.id === id ? updatedProduct : p))
+      );
+      showSuccess(
+        `"${product.name}" is now ${
+          discontinued ? "discontinued" : "active again"
+        }.`
+      );
+    } catch (err) {
+      alert((err as Error).message ?? "Failed to update product state.");
     }
   }
 
@@ -209,6 +283,8 @@ export default function AdminProductsPage() {
               products={products}
               onDelete={handleDeleteProduct}
               isDeleting={isDeleting}
+              onUpdateStock={handleUpdateStock}
+              onToggleDiscontinue={handleToggleDiscontinue}
             />
           )}
         </section>

@@ -16,10 +16,12 @@ public class ProductService {
 
     private final ProductRepository productRepository;
     private final CategoryRepository categoryRepository;
+    private final com.shaantroop.ecommerce.repository.OrderItemRepository orderItemRepository;
 
-    public ProductService(ProductRepository productRepository, CategoryRepository categoryRepository) {
+    public ProductService(ProductRepository productRepository, CategoryRepository categoryRepository, com.shaantroop.ecommerce.repository.OrderItemRepository orderItemRepository) {
         this.productRepository = productRepository;
         this.categoryRepository = categoryRepository;
+        this.orderItemRepository = orderItemRepository;
     }
 
     public List<ProductDTO> getAllProducts() {
@@ -64,6 +66,7 @@ public class ProductService {
         product.setStockQuantity(productDTO.getStockQuantity());
         product.setImageUrl(productDTO.getImageUrl());
         product.setCategory(category);
+        product.setDiscontinued(productDTO.isDiscontinued());
 
         Product updatedProduct = productRepository.save(product);
         return ProductDTO.fromEntity(updatedProduct);
@@ -72,6 +75,19 @@ public class ProductService {
     public void deleteProduct(Long id) {
         Product product = productRepository.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("Product", "id", id));
+                
+        // Severe foreign key constraint on historical orders
+        List<com.shaantroop.ecommerce.model.OrderItem> relatedItems = orderItemRepository.findByProduct(product);
+        for (com.shaantroop.ecommerce.model.OrderItem item : relatedItems) {
+            item.setProduct(null);
+            // item.setProductName is already set during order creation for new orders, 
+            // but for safety, if it's null (legacy), we populate it here before unlinking.
+            if (item.getProductName() == null) {
+                item.setProductName(product.getName());
+            }
+        }
+        orderItemRepository.saveAll(relatedItems);
+
         productRepository.delete(product);
     }
 }

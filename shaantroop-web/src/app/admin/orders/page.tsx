@@ -2,9 +2,19 @@
 
 import { useState, useEffect, useCallback } from "react";
 import AdminDashboardLayout from "@/components/admin/AdminDashboardLayout";
+import { assetUrl } from "@/lib/assetUrl";
 
 /* ─── Types ──────────────────────────────────────────────────────────── */
 type OrderStatus = "PENDING" | "SHIPPED" | "DELIVERED" | "CANCELLED";
+
+interface OrderItemDetail {
+  id: number;
+  productId: number;
+  productName: string;
+  productImageUrl: string | null;
+  quantity: number;
+  unitPrice: number;
+}
 
 interface Order {
   id: number;
@@ -12,10 +22,13 @@ interface Order {
   contactEmail: string;
   contactPhone: string | null;
   shippingAddress: string | null;
+  subTotal: number;
+  shippingCost: number;
   totalAmount: number;
   status: OrderStatus;
   createdAt: string;
   updatedAt: string;
+  items: OrderItemDetail[];
 }
 
 /* ─── Constants ──────────────────────────────────────────────────────── */
@@ -66,14 +79,24 @@ function authHeaders(): HeadersInit {
 }
 
 function formatDate(iso: string) {
-  return new Intl.DateTimeFormat("en-IN", {
-    day: "2-digit",
+  // 1. Force JavaScript to recognize the backend timestamp as UTC
+  const utcString = iso.endsWith('Z') ? iso : `${iso}Z`;
+  const date = new Date(utcString);
+
+  // 2. Format the output explicitly to Indian Standard Time (IST)
+  const formattedDate = date.toLocaleString("en-IN", {
+    timeZone: "Asia/Kolkata",
+    day: "numeric",
     month: "short",
     year: "numeric",
-    hour: "2-digit",
+    hour: "numeric",
     minute: "2-digit",
     hour12: true,
-  }).format(new Date(iso));
+    timeZoneName: "short", // Adds 'IST'
+  });
+
+  // 3. Find 'am' or 'pm' and convert exactly that part to uppercase
+  return formattedDate.replace(/\b(am|pm)\b/i, (match) => match.toUpperCase());
 }
 
 function formatAmount(amount: number) {
@@ -188,81 +211,258 @@ function StatusDropdown({
 function OrderRow({
   order,
   onStatusUpdate,
+  isExpanded,
+  onToggle,
 }: {
   order: Order;
   onStatusUpdate: (id: number, status: OrderStatus) => Promise<void>;
+  isExpanded: boolean;
+  onToggle: (id: number) => void;
 }) {
+  const colSpan = 7;
   return (
-    <tr
-      className="border-b transition-colors duration-100 hover:bg-[#F8FAF8]"
-      style={{ borderColor: "#EEF4EC" }}
-    >
-      {/* Order ID */}
-      <td
-        className="px-4 py-3 text-sm font-mono font-semibold"
-        style={{ color: "#1E5021", fontFamily: "monospace" }}
+    <>
+      <tr
+        className="border-b transition-colors duration-100 hover:bg-[#F8FAF8] cursor-pointer select-none"
+        style={{ borderColor: isExpanded ? "transparent" : "#EEF4EC" }}
+        onClick={() => onToggle(order.id)}
+        aria-expanded={isExpanded}
       >
-        #{order.id}
-      </td>
+        {/* Order ID */}
+        <td
+          className="px-4 py-3 text-sm font-mono font-semibold"
+          style={{ color: "#1E5021", fontFamily: "monospace" }}
+        >
+          #{order.id}
+        </td>
 
-      {/* Customer email */}
-      <td
-        className="px-4 py-3 text-sm max-w-[200px] truncate"
-        style={{
-          fontFamily: "var(--font-inter), sans-serif",
-          color: "#0F2B10",
-        }}
-        title={order.contactEmail}
-      >
-        {order.contactEmail || (
-          <span style={{ color: "#6DA669", fontStyle: "italic" }}>Guest</span>
-        )}
-        {order.contactName && (
-          <span
-            className="block text-xs"
-            style={{ color: "#6DA669" }}
+        {/* Customer email */}
+        <td
+          className="px-4 py-3 text-sm max-w-[200px] truncate"
+          style={{
+            fontFamily: "var(--font-inter), sans-serif",
+            color: "#0F2B10",
+          }}
+          title={order.contactEmail}
+        >
+          {order.contactEmail || (
+            <span style={{ color: "#6DA669", fontStyle: "italic" }}>Guest</span>
+          )}
+          {order.contactName && (
+            <span
+              className="block text-xs"
+              style={{ color: "#6DA669" }}
+            >
+              {order.contactName}
+            </span>
+          )}
+        </td>
+
+        {/* Date */}
+        <td
+          className="hidden sm:table-cell px-4 py-3 text-xs whitespace-nowrap"
+          style={{
+            fontFamily: "var(--font-inter), sans-serif",
+            color: "#2D6B2A",
+          }}
+        >
+          {formatDate(order.createdAt)}
+        </td>
+
+        {/* Amount */}
+        <td
+          className="px-4 py-3 text-sm font-semibold text-right whitespace-nowrap"
+          style={{
+            fontFamily: "var(--font-inter), sans-serif",
+            color: "#0F2B10",
+          }}
+        >
+          {formatAmount(order.totalAmount)}
+        </td>
+
+        {/* Status badge */}
+        <td className="hidden md:table-cell px-4 py-3">
+          <StatusBadge status={order.status} />
+        </td>
+
+        {/* Status control — stop propagation so clicking the dropdown doesn't toggle the row */}
+        <td className="px-4 py-3 text-right" onClick={(e) => e.stopPropagation()}>
+          <StatusDropdown
+            orderId={order.id}
+            current={order.status}
+            onUpdate={onStatusUpdate}
+          />
+        </td>
+
+        {/* Chevron toggle */}
+        <td className="px-3 py-3 text-right">
+          <svg
+            viewBox="0 0 20 20"
+            fill="#6DA669"
+            className="w-4 h-4 inline-block transition-transform duration-200"
+            style={{ transform: isExpanded ? "rotate(180deg)" : "rotate(0deg)" }}
+            aria-hidden="true"
           >
-            {order.contactName}
-          </span>
-        )}
-      </td>
+            <path
+              fillRule="evenodd"
+              d="M5.23 7.21a.75.75 0 011.06.02L10 11.168l3.71-3.938a.75.75 0 111.08 1.04l-4.25 4.5a.75.75 0 01-1.08 0l-4.25-4.5a.75.75 0 01.02-1.06z"
+              clipRule="evenodd"
+            />
+          </svg>
+        </td>
+      </tr>
 
-      {/* Date */}
-      <td
-        className="hidden sm:table-cell px-4 py-3 text-xs whitespace-nowrap"
-        style={{
-          fontFamily: "var(--font-inter), sans-serif",
-          color: "#2D6B2A",
-        }}
-      >
-        {formatDate(order.createdAt)}
-      </td>
+      {/* ── Expandable detail sub-panel ── */}
+      {isExpanded && (
+        <tr style={{ borderBottom: "2px solid #CDE0C9" }}>
+          <td colSpan={colSpan} className="px-0 py-0">
+            <div
+              className="grid grid-cols-1 md:grid-cols-2 gap-0"
+              style={{ background: "#F4FAF3" }}
+            >
+              {/* Items to Pack */}
+              <div className="px-6 py-5 border-r" style={{ borderColor: "#CDE0C9" }}>
+                <p
+                  className="text-[10px] uppercase tracking-widest font-semibold mb-3"
+                  style={{
+                    fontFamily: "var(--font-inter), sans-serif",
+                    color: "#2D6B2A",
+                    letterSpacing: "0.12em",
+                  }}
+                >
+                  📦 Items to Pack
+                </p>
+                {order.items && order.items.length > 0 ? (
+                  <ul className="space-y-2">
+                    {order.items.map((item) => (
+                      <li key={item.id} className="flex items-center justify-between gap-3">
+                        <div className="flex items-center gap-2.5 min-w-0">
+                          {item.productImageUrl ? (
+                            // eslint-disable-next-line @next/next/no-img-element
+                            <img
+                              src={assetUrl(item.productImageUrl)}
+                              alt={item.productName}
+                              className="w-8 h-8 rounded-lg object-cover flex-shrink-0"
+                            />
+                          ) : (
+                            <div
+                              className="w-8 h-8 rounded-lg flex-shrink-0 flex items-center justify-center"
+                              style={{ background: "#CDE0C9" }}
+                              aria-hidden="true"
+                            >
+                              <span className="text-[8px] font-bold" style={{ color: "#1E5021" }}>✦</span>
+                            </div>
+                          )}
+                          <span
+                            className="text-sm truncate"
+                            style={{
+                              fontFamily: "var(--font-inter), sans-serif",
+                              color: "#0F2B10",
+                            }}
+                          >
+                            {item.productName}
+                          </span>
+                        </div>
+                        <div className="flex items-center gap-3 flex-shrink-0">
+                          <span
+                            className="text-xs px-2 py-0.5 rounded-full font-semibold"
+                            style={{
+                              background: "#CDE0C9",
+                              color: "#174019",
+                              fontFamily: "var(--font-inter), sans-serif",
+                            }}
+                          >
+                            ×{item.quantity}
+                          </span>
+                          <span
+                            className="text-xs font-medium w-16 text-right"
+                            style={{
+                              fontFamily: "var(--font-inter), sans-serif",
+                              color: "#2D6B2A",
+                            }}
+                          >
+                            {formatAmount(item.unitPrice)}
+                          </span>
+                        </div>
+                      </li>
+                    ))}
+                  </ul>
+                ) : (
+                  <p className="text-xs" style={{ color: "#6DA669", fontFamily: "var(--font-inter), sans-serif" }}>No items found.</p>
+                )}
 
-      {/* Amount */}
-      <td
-        className="px-4 py-3 text-sm font-semibold text-right whitespace-nowrap"
-        style={{
-          fontFamily: "var(--font-inter), sans-serif",
-          color: "#0F2B10",
-        }}
-      >
-        {formatAmount(order.totalAmount)}
-      </td>
+                {/* Cost breakdown */}
+                <div
+                  className="mt-4 pt-3 space-y-1 border-t"
+                  style={{ borderColor: "#CDE0C9" }}
+                >
+                  <div className="flex justify-between text-xs" style={{ fontFamily: "var(--font-inter), sans-serif", color: "#6DA669" }}>
+                    <span>Subtotal</span>
+                    <span>{formatAmount(order.subTotal)}</span>
+                  </div>
+                  <div className="flex justify-between text-xs" style={{ fontFamily: "var(--font-inter), sans-serif", color: "#6DA669" }}>
+                    <span>Shipping</span>
+                    <span>{order.shippingCost === 0 ? "Free" : formatAmount(order.shippingCost)}</span>
+                  </div>
+                  <div
+                    className="flex justify-between text-sm font-semibold pt-1 border-t"
+                    style={{ fontFamily: "var(--font-inter), sans-serif", color: "#0F2B10", borderColor: "#CDE0C9" }}
+                  >
+                    <span>Total</span>
+                    <span>{formatAmount(order.totalAmount)}</span>
+                  </div>
+                </div>
+              </div>
 
-      {/* Status badge */}
-      <td className="hidden md:table-cell px-4 py-3">
-        <StatusBadge status={order.status} />
-      </td>
-
-      {/* Status control */}
-      <td className="px-4 py-3 text-right">
-        <StatusDropdown
-          orderId={order.id}
-          current={order.status}
-          onUpdate={onStatusUpdate}
-        />
-      </td>
-    </tr>
+              {/* Shipping Info */}
+              <div className="px-6 py-5">
+                <p
+                  className="text-[10px] uppercase tracking-widest font-semibold mb-3"
+                  style={{
+                    fontFamily: "var(--font-inter), sans-serif",
+                    color: "#2D6B2A",
+                    letterSpacing: "0.12em",
+                  }}
+                >
+                  🚚 Shipping Info
+                </p>
+                <dl className="space-y-2.5">
+                  {[
+                    { label: "Name", value: order.contactName },
+                    { label: "Phone", value: order.contactPhone },
+                    { label: "Email", value: order.contactEmail },
+                    { label: "Address", value: order.shippingAddress },
+                  ].map(({ label, value }) => (
+                    <div key={label}>
+                      <dt
+                        className="text-[10px] uppercase tracking-wider font-semibold"
+                        style={{
+                          fontFamily: "var(--font-inter), sans-serif",
+                          color: "#6DA669",
+                          letterSpacing: "0.08em",
+                        }}
+                      >
+                        {label}
+                      </dt>
+                      <dd
+                        className="text-sm mt-0.5"
+                        style={{
+                          fontFamily: "var(--font-inter), sans-serif",
+                          color: value ? "#0F2B10" : "#6DA669",
+                          fontStyle: value ? "normal" : "italic",
+                        }}
+                      >
+                        {value ?? "—"}
+                      </dd>
+                    </div>
+                  ))}
+                </dl>
+              </div>
+            </div>
+          </td>
+        </tr>
+      )}
+    </>
   );
 }
 
@@ -272,6 +472,11 @@ export default function AdminOrdersPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [toast, setToast] = useState<string | null>(null);
+  const [expandedOrderId, setExpandedOrderId] = useState<number | null>(null);
+
+  function toggleExpanded(id: number) {
+    setExpandedOrderId((prev) => (prev === id ? null : id));
+  }
 
   /* Fetch all orders */
   const fetchOrders = useCallback(async () => {
@@ -481,6 +686,7 @@ export default function AdminOrdersPage() {
                         { label: "Amount", align: "right" },
                         { label: "Status", align: "left", hidden: "md" },
                         { label: "Update", align: "right" },
+                        { label: "", align: "right" },
                       ].map((col) => (
                         <th
                           key={col.label}
@@ -509,6 +715,8 @@ export default function AdminOrdersPage() {
                         key={order.id}
                         order={order}
                         onStatusUpdate={handleStatusUpdate}
+                        isExpanded={expandedOrderId === order.id}
+                        onToggle={toggleExpanded}
                       />
                     ))}
                   </tbody>

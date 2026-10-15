@@ -5,19 +5,35 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useAuth } from "@/context/AuthContext";
 import { api } from "@/lib/apiFetch";
-import type { UserProfileDTO } from "@/lib/types";
+import type { UserProfileResponseDTO, UserProfileRequestDTO } from "@/lib/types";
+
+/* ── Field-level error state ───────────────────────────────────────────────── */
+interface FieldErrors {
+  fullName?: string;
+  phone?: string;
+  addressLine?: string;
+  city?: string;
+  state?: string;
+  country?: string;
+}
 
 export default function ProfilePage() {
   const { user, isLoading: authLoading } = useAuth();
   const router = useRouter();
 
-  const [profile, setProfile] = useState<UserProfileDTO>({
+  const [profile, setProfile] = useState<UserProfileRequestDTO>({
     fullName: "",
     altContactEmail: "",
-    primaryShippingAddress: "",
+    phone: "",
+    addressLine: "",
+    city: "",
+    state: "",
+    country: "",
+    dateOfBirth: "",
   });
   const [isFetching, setIsFetching] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
+  const [errors, setErrors] = useState<FieldErrors>({});
   const [message, setMessage] = useState<{
     type: "success" | "error";
     text: string;
@@ -34,21 +50,61 @@ export default function ProfilePage() {
   useEffect(() => {
     if (!user) return;
     api
-      .get<UserProfileDTO>("/api/profile")
-      .then((data) => setProfile(data))
+      .get<UserProfileResponseDTO>("/api/profile")
+      .then((data) =>
+        setProfile({
+          fullName: data.fullName ?? "",
+          altContactEmail: data.altContactEmail ?? "",
+          phone: data.phone ?? "",
+          addressLine: data.addressLine ?? "",
+          city: data.city ?? "",
+          state: data.state ?? "",
+          country: data.country ?? "",
+          dateOfBirth: data.dateOfBirth ?? "",
+        })
+      )
       .catch(() => {
         /* profile may not exist yet – use empty default */
       })
       .finally(() => setIsFetching(false));
   }, [user]);
 
+  // ── Validation ──────────────────────────────────────────────────────────────
+  function validate(): FieldErrors {
+    const errs: FieldErrors = {};
+    if (!profile.fullName.trim()) errs.fullName = "Full Name is required.";
+    if (!profile.phone.trim()) errs.phone = "Phone Number is required.";
+    if (!profile.addressLine.trim())
+      errs.addressLine = "Address Line is required.";
+    if (!profile.city.trim()) errs.city = "City is required.";
+    if (!profile.state.trim()) errs.state = "State is required.";
+    if (!profile.country.trim()) errs.country = "Country is required.";
+    return errs;
+  }
+
   const handleSubmit = async (e: FormEvent) => {
     e.preventDefault();
     setMessage(null);
+
+    const validationErrors = validate();
+    setErrors(validationErrors);
+    if (Object.keys(validationErrors).length > 0) return;
+
     setIsSaving(true);
     try {
-      const updated = await api.put<UserProfileDTO>("/api/profile", profile);
-      setProfile(updated);
+      const updated = await api.put<UserProfileResponseDTO>(
+        "/api/profile",
+        profile
+      );
+      setProfile({
+        fullName: updated.fullName ?? "",
+        altContactEmail: updated.altContactEmail ?? "",
+        phone: updated.phone ?? "",
+        addressLine: updated.addressLine ?? "",
+        city: updated.city ?? "",
+        state: updated.state ?? "",
+        country: updated.country ?? "",
+      });
       setMessage({ type: "success", text: "Profile saved successfully!" });
     } catch {
       setMessage({
@@ -89,18 +145,48 @@ export default function ProfilePage() {
     );
   }
 
+  /* ── Reusable styling helpers ──────────────────────────────────────────────── */
   const inputBase =
     "w-full px-4 py-3 rounded-xl border outline-none transition-all text-sm";
-  const inputStyle = {
-    borderColor: "var(--color-earth-200)",
+  const inputStyle = (field?: string) => ({
+    borderColor:
+      field && errors[field as keyof FieldErrors]
+        ? "#f87171"
+        : "var(--color-earth-200)",
     background: "var(--color-earth-50)",
     color: "var(--color-earth-900)",
     fontFamily: "var(--font-inter), sans-serif",
+  });
+  const focusGreen = (
+    e: React.FocusEvent<HTMLInputElement | HTMLTextAreaElement>
+  ) => (e.currentTarget.style.borderColor = "var(--color-forest-500)");
+  const blurField = (
+    field: string,
+    e: React.FocusEvent<HTMLInputElement | HTMLTextAreaElement>
+  ) => {
+    e.currentTarget.style.borderColor =
+      errors[field as keyof FieldErrors]
+        ? "#f87171"
+        : "var(--color-earth-200)";
   };
-  const focusGreen = (e: React.FocusEvent<HTMLInputElement | HTMLTextAreaElement>) =>
-    (e.currentTarget.style.borderColor = "var(--color-forest-500)");
-  const blurGrey = (e: React.FocusEvent<HTMLInputElement | HTMLTextAreaElement>) =>
-    (e.currentTarget.style.borderColor = "var(--color-earth-200)");
+
+  const labelStyle = {
+    color: "var(--color-forest-700)",
+    fontFamily: "var(--font-inter), sans-serif",
+  };
+
+  function renderError(field: keyof FieldErrors) {
+    if (!errors[field]) return null;
+    return (
+      <p
+        className="mt-1 text-xs font-medium"
+        style={{ color: "#ef4444", fontFamily: "var(--font-inter), sans-serif" }}
+        role="alert"
+      >
+        {errors[field]}
+      </p>
+    );
+  }
 
   return (
     <main
@@ -163,44 +249,124 @@ export default function ProfilePage() {
             boxShadow: "0 4px 24px rgba(15,28,13,0.06)",
           }}
         >
-          <form onSubmit={handleSubmit} className="space-y-6">
+          <form onSubmit={handleSubmit} className="space-y-6" noValidate>
 
             {/* Full Name */}
             <div>
               <label
                 htmlFor="fullName"
                 className="block text-sm font-medium mb-1.5"
-                style={{
-                  color: "var(--color-forest-700)",
-                  fontFamily: "var(--font-inter), sans-serif",
-                }}
+                style={labelStyle}
               >
-                Full Name
+                Full Name <span style={{ color: "#ef4444" }}>*</span>
               </label>
               <input
                 id="fullName"
                 type="text"
-                value={profile.fullName ?? ""}
-                onChange={(e) =>
-                  setProfile({ ...profile, fullName: e.target.value })
-                }
+                required
+                value={profile.fullName}
+                onChange={(e) => {
+                  setProfile({ ...profile, fullName: e.target.value });
+                  if (errors.fullName)
+                    setErrors({ ...errors, fullName: undefined });
+                }}
                 placeholder="Your full name"
                 className={inputBase}
-                style={inputStyle}
+                style={inputStyle("fullName")}
                 onFocus={focusGreen}
-                onBlur={blurGrey}
+                onBlur={(e) => blurField("fullName", e)}
+              />
+              {renderError("fullName")}
+            </div>
+
+            {/* Email Address (read-only from auth) */}
+            <div>
+              <label
+                htmlFor="email"
+                className="block text-sm font-medium mb-1.5"
+                style={labelStyle}
+              >
+                Email Address <span style={{ color: "#ef4444" }}>*</span>
+              </label>
+              <input
+                id="email"
+                type="email"
+                readOnly
+                value={user?.email ?? ""}
+                className={`${inputBase} cursor-not-allowed`}
+                style={{
+                  ...inputStyle(),
+                  opacity: 0.7,
+                }}
+              />
+              <p
+                className="mt-1 text-xs"
+                style={{
+                  color: "var(--color-earth-400)",
+                  fontFamily: "var(--font-inter), sans-serif",
+                }}
+              >
+                Email is tied to your login and cannot be changed here.
+              </p>
+            </div>
+
+            {/* Phone Number */}
+            <div>
+              <label
+                htmlFor="phone"
+                className="block text-sm font-medium mb-1.5"
+                style={labelStyle}
+              >
+                Phone Number <span style={{ color: "#ef4444" }}>*</span>
+              </label>
+              <input
+                id="phone"
+                type="tel"
+                required
+                value={profile.phone}
+                onChange={(e) => {
+                  setProfile({ ...profile, phone: e.target.value });
+                  if (errors.phone)
+                    setErrors({ ...errors, phone: undefined });
+                }}
+                placeholder="+91 98765 43210"
+                className={inputBase}
+                style={inputStyle("phone")}
+                onFocus={focusGreen}
+                onBlur={(e) => blurField("phone", e)}
+              />
+              {renderError("phone")}
+            </div>
+
+            {/* Date of Birth */}
+            <div>
+              <label
+                htmlFor="dateOfBirth"
+                className="block text-sm font-medium mb-1.5"
+                style={labelStyle}
+              >
+                Date of Birth <span style={{ color: "var(--color-earth-400)", fontWeight: "normal" }}>(Optional)</span>
+              </label>
+              <input
+                id="dateOfBirth"
+                type="date"
+                value={profile.dateOfBirth || ""}
+                onChange={(e) => {
+                  setProfile({ ...profile, dateOfBirth: e.target.value });
+                }}
+                className={inputBase}
+                style={inputStyle("dateOfBirth")}
+                onFocus={focusGreen}
+                onBlur={(e) => blurField("dateOfBirth", e)}
               />
             </div>
 
-            {/* Alt Contact Email */}
+            {/* Alt Contact Email (optional) */}
             <div>
               <label
                 htmlFor="altEmail"
                 className="block text-sm font-medium mb-1.5"
-                style={{
-                  color: "var(--color-forest-700)",
-                  fontFamily: "var(--font-inter), sans-serif",
-                }}
+                style={labelStyle}
               >
                 Alternative Contact Email
               </label>
@@ -213,40 +379,138 @@ export default function ProfilePage() {
                 }
                 placeholder="alternate@example.com"
                 className={inputBase}
-                style={inputStyle}
+                style={inputStyle()}
                 onFocus={focusGreen}
-                onBlur={blurGrey}
+                onBlur={(e) => blurField("", e)}
               />
             </div>
 
-            {/* Shipping Address */}
-            <div>
-              <label
-                htmlFor="shippingAddress"
-                className="block text-sm font-medium mb-1.5"
+            {/* ── Address section ────────────────────────────────────── */}
+            <div
+              className="pt-4 border-t"
+              style={{ borderColor: "var(--color-earth-100)" }}
+            >
+              <p
+                className="text-xs tracking-[0.2em] uppercase mb-4"
                 style={{
-                  color: "var(--color-forest-700)",
+                  color: "var(--color-gold-500)",
                   fontFamily: "var(--font-inter), sans-serif",
                 }}
               >
-                Primary Shipping Address
-              </label>
-              <textarea
-                id="shippingAddress"
-                rows={4}
-                value={profile.primaryShippingAddress ?? ""}
-                onChange={(e) =>
-                  setProfile({
-                    ...profile,
-                    primaryShippingAddress: e.target.value,
-                  })
-                }
-                placeholder="House / Flat no., Street, City, State, PIN"
-                className="w-full px-4 py-3 rounded-xl border outline-none transition-all text-sm resize-none"
-                style={{ ...inputStyle, lineHeight: "1.6" }}
-                onFocus={focusGreen}
-                onBlur={blurGrey}
-              />
+                Shipping Address
+              </p>
+
+              {/* Address Line */}
+              <div className="mb-5">
+                <label
+                  htmlFor="addressLine"
+                  className="block text-sm font-medium mb-1.5"
+                  style={labelStyle}
+                >
+                  Address Line <span style={{ color: "#ef4444" }}>*</span>
+                </label>
+                <input
+                  id="addressLine"
+                  type="text"
+                  required
+                  value={profile.addressLine}
+                  onChange={(e) => {
+                    setProfile({ ...profile, addressLine: e.target.value });
+                    if (errors.addressLine)
+                      setErrors({ ...errors, addressLine: undefined });
+                  }}
+                  placeholder="House / Flat no., Street, Apartment"
+                  className={inputBase}
+                  style={inputStyle("addressLine")}
+                  onFocus={focusGreen}
+                  onBlur={(e) => blurField("addressLine", e)}
+                />
+                {renderError("addressLine")}
+              </div>
+
+              {/* City + State side-by-side */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div>
+                  <label
+                    htmlFor="city"
+                    className="block text-sm font-medium mb-1.5"
+                    style={labelStyle}
+                  >
+                    City <span style={{ color: "#ef4444" }}>*</span>
+                  </label>
+                  <input
+                    id="city"
+                    type="text"
+                    required
+                    value={profile.city}
+                    onChange={(e) => {
+                      setProfile({ ...profile, city: e.target.value });
+                      if (errors.city)
+                        setErrors({ ...errors, city: undefined });
+                    }}
+                    placeholder="Mumbai"
+                    className={inputBase}
+                    style={inputStyle("city")}
+                    onFocus={focusGreen}
+                    onBlur={(e) => blurField("city", e)}
+                  />
+                  {renderError("city")}
+                </div>
+                <div>
+                  <label
+                    htmlFor="state"
+                    className="block text-sm font-medium mb-1.5"
+                    style={labelStyle}
+                  >
+                    State <span style={{ color: "#ef4444" }}>*</span>
+                  </label>
+                  <input
+                    id="state"
+                    type="text"
+                    required
+                    value={profile.state}
+                    onChange={(e) => {
+                      setProfile({ ...profile, state: e.target.value });
+                      if (errors.state)
+                        setErrors({ ...errors, state: undefined });
+                    }}
+                    placeholder="Maharashtra"
+                    className={inputBase}
+                    style={inputStyle("state")}
+                    onFocus={focusGreen}
+                    onBlur={(e) => blurField("state", e)}
+                  />
+                  {renderError("state")}
+                </div>
+              </div>
+
+              {/* Country */}
+              <div className="mt-4">
+                <label
+                  htmlFor="country"
+                  className="block text-sm font-medium mb-1.5"
+                  style={labelStyle}
+                >
+                  Country <span style={{ color: "#ef4444" }}>*</span>
+                </label>
+                <input
+                  id="country"
+                  type="text"
+                  required
+                  value={profile.country}
+                  onChange={(e) => {
+                    setProfile({ ...profile, country: e.target.value });
+                    if (errors.country)
+                      setErrors({ ...errors, country: undefined });
+                  }}
+                  placeholder="India"
+                  className={inputBase}
+                  style={inputStyle("country")}
+                  onFocus={focusGreen}
+                  onBlur={(e) => blurField("country", e)}
+                />
+                {renderError("country")}
+              </div>
             </div>
 
             {/* Status message */}

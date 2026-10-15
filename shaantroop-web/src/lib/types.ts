@@ -13,6 +13,30 @@ export interface Product {
   imageUrl: string;
   categoryId: number;
   categoryName: string;
+  discontinued?: boolean;
+}
+
+export interface DashboardStatsResponseDTO {
+  totalRevenue: number;
+  totalOrders: number;
+  activeUsers: number;
+  totalProducts: number;
+  totalCategories: number;
+  salesOverTime: Array<{
+    date: string;
+    revenue: number;
+  }>;
+  ageDemographics: Record<string, number>;
+  stateDistribution: Record<string, number>;
+  categoryMetrics: Array<{
+    categoryName: string;
+    productCount: number;
+    totalRevenue: number;
+  }>;
+  topSellingProducts: Array<{
+    productName: string;
+    quantitySold: number;
+  }>;
 }
 
 export interface ProductFormData {
@@ -39,17 +63,34 @@ export interface AuthResponse {
   user: UserDTO;
 }
 
-/** Mirrors the Spring Boot UserProfileDTO */
-export interface UserProfileDTO {
+/** Mirrors the Spring Boot UserProfileRequestDTO */
+export interface UserProfileRequestDTO {
+  fullName: string;
+  altContactEmail: string | null;
+  phone: string;
+  addressLine: string;
+  city: string;
+  state: string;
+  dateOfBirth: string | null;
+  country: string;
+}
+
+/** Mirrors the Spring Boot UserProfileResponseDTO */
+export interface UserProfileResponseDTO {
   fullName: string | null;
   altContactEmail: string | null;
-  primaryShippingAddress: string | null;
+  phone: string | null;
+  addressLine: string | null;
+  city: string | null;
+  state: string | null;
+  dateOfBirth: string | null;
+  country: string | null;
 }
 
 /** Mirrors Spring Boot OrderItemDTO */
 export interface OrderItemDTO {
   id: number;
-  productId: number;
+  productId: number | null;
   productName: string;
   productImageUrl: string | null;
   quantity: number;
@@ -70,4 +111,14 @@ export interface OrderDTO {
   items: OrderItemDTO[];
   createdAt: string;
   updatedAt: string;
+}
+
+/** Mirrors the Spring Boot Course entity */
+export interface Course {
+  id: number;
+  title: string;
+  description: string;
+  price: number;
+  instructor: string;
+  duration: string;
 }

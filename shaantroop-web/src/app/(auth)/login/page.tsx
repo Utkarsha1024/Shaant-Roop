@@ -29,12 +29,14 @@ function LoginForm() {
         password,
       });
 
-      // AuthContext.login() persists both the token and user to localStorage
-      // and updates global state so the Navbar instantly reflects the new user.
+      // ─── THE MIDDLEWARE FIX: Sync the token to a Cookie ───
+      // Next.js middleware can only read cookies, not localStorage!
+      document.cookie = `shaantroop_token=${data.token}; path=/; max-age=604800; SameSite=Lax`;
+      // ──────────────────────────────────────────────────────
+
+      // AuthContext.login() persists to localStorage for the client
       login(data.user, data.token);
 
-      // Honor ?redirect= param (set by middleware when bouncing unauthenticated
-      // admin requests) — then fall back to role-based defaults.
       const redirectTo = searchParams.get("redirect");
       if (redirectTo && redirectTo.startsWith("/")) {
         router.push(redirectTo);
@@ -44,8 +46,6 @@ function LoginForm() {
         router.push("/");
       }
     } catch (err: unknown) {
-      // apiFetch throws an Error with the server's message on non-2xx responses.
-      // The Spring Boot AuthController returns 401 with a message for bad credentials.
       const message = err instanceof Error ? err.message : "";
 
       if (
@@ -255,7 +255,7 @@ function LoginForm() {
           <p className="mt-6 text-center text-sm" style={{ color: "var(--color-earth-400)", fontFamily: "var(--font-inter), sans-serif" }}>
             Just browsing?{" "}
             <Link
-              href="/checkout"
+              href="/#products"
               className="underline underline-offset-2 hover:opacity-80 transition-opacity"
               style={{ color: "var(--color-earth-500)" }}
             >

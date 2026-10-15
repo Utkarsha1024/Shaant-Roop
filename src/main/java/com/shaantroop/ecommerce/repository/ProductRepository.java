@@ -9,4 +9,7 @@ import java.util.List;
 public interface ProductRepository extends JpaRepository<Product, Long> {
     List<Product> findByCategoryId(Long categoryId);
     List<Product> findByNameContainingIgnoreCase(String name);
+
+    @org.springframework.data.jpa.repository.Query("SELECT p.imageUrl FROM Product p WHERE p.imageUrl IS NOT NULL")
+    List<String> findAllImageUrls();
 }

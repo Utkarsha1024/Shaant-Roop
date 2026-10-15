@@ -35,7 +35,7 @@ function toSlug(name: string) {
 }
 
 /* ─── Category pill / row card ───────────────────────────────────────── */
-function CategoryCard({ category }: { category: Category }) {
+function CategoryCard({ category, onDelete }: { category: Category; onDelete: (id: number) => void }) {
   return (
     <div
       className="flex items-center justify-between px-5 py-4 rounded-xl border transition-all duration-150 hover:shadow-sm"
@@ -72,17 +72,27 @@ function CategoryCard({ category }: { category: Category }) {
           </p>
         </div>
       </div>
-      {category.description && (
-        <p
-          className="hidden sm:block text-xs max-w-xs text-right"
-          style={{
-            fontFamily: "var(--font-inter), sans-serif",
-            color: "#6DA669",
-          }}
+      <div className="flex items-center gap-4">
+        {category.description && (
+          <p
+            className="hidden sm:block text-xs max-w-xs text-right"
+            style={{
+              fontFamily: "var(--font-inter), sans-serif",
+              color: "#6DA669",
+            }}
+          >
+            {category.description}
+          </p>
+        )}
+        <button
+          onClick={() => onDelete(category.id)}
+          className="px-3 py-1.5 rounded-lg text-xs font-semibold transition-colors hover:bg-red-50 focus:ring-2 focus:ring-red-200"
+          style={{ color: "#b91c1c", fontFamily: "var(--font-inter), sans-serif" }}
+          aria-label={`Delete category ${category.name}`}
         >
-          {category.description}
-        </p>
-      )}
+          Delete
+        </button>
+      </div>
     </div>
   );
 }
@@ -161,6 +171,31 @@ export default function AdminCategoriesPage() {
     }
   }
 
+  /* ── Delete category ── */
+  async function handleDelete(categoryId: number) {
+    if (!window.confirm("Are you sure you want to delete this category?")) {
+      return;
+    }
+
+    try {
+      const res = await fetch(`${API}/api/categories/${categoryId}`, {
+        method: "DELETE",
+        headers: authHeaders(),
+      });
+      
+      if (!res.ok) {
+        const msg = await res.text();
+        throw new Error(msg || `Server returned ${res.status}`);
+      }
+
+      // Optimistically update UI
+      setCategories((prev) => prev.filter((c) => c.id !== categoryId));
+      setSuccessMsg("Category deleted successfully!");
+    } catch (err) {
+      setFormError(err instanceof Error ? err.message : "Deletion failed.");
+    }
+  }
+
   return (
     <AdminDashboardLayout title="Categories">
       <div className="max-w-2xl space-y-8">
@@ -228,7 +263,7 @@ export default function AdminCategoriesPage() {
           ) : (
             <div className="space-y-2">
               {categories.map((cat) => (
-                <CategoryCard key={cat.id} category={cat} />
+                <CategoryCard key={cat.id} category={cat} onDelete={handleDelete} />
               ))}
             </div>
           )}

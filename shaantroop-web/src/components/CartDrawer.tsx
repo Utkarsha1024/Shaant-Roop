@@ -1,6 +1,7 @@
 "use client";
 
 import { useCart } from "@/context/CartContext";
+import { assetUrl } from "@/lib/assetUrl";
 import Link from "next/link";
 
 interface CartDrawerProps {
@@ -120,12 +121,22 @@ export default function CartDrawer({ isOpen, onClose }: CartDrawerProps) {
                 className="flex gap-4 p-3 rounded-xl border"
                 style={{ borderColor: "var(--color-earth-200)", background: "white" }}
               >
-                {/* Color swatch as placeholder */}
+                {/* Product thumbnail */}
                 <div
-                  className="w-16 h-16 rounded-lg flex-shrink-0 flex items-center justify-center text-white text-[10px] font-medium"
-                  style={{ background: "var(--color-earth-300)" }}
+                  className="w-16 h-16 rounded-lg flex-shrink-0 flex items-center justify-center overflow-hidden"
+                  style={{ background: "var(--color-earth-100)" }}
+                  aria-hidden="true"
                 >
-                  soap
+                  {item.product.imageUrl ? (
+                    // eslint-disable-next-line @next/next/no-img-element
+                    <img
+                      src={assetUrl(item.product.imageUrl)}
+                      alt={item.product.name}
+                      className="w-full h-full object-cover"
+                    />
+                  ) : (
+                    <span className="text-white text-[10px] font-medium" style={{ color: "var(--color-earth-400)" }}>soap</span>
+                  )}
                 </div>
 
                 <div className="flex-1 min-w-0">

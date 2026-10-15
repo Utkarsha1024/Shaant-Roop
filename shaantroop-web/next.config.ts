@@ -8,6 +8,13 @@ const nextConfig: NextConfig = {
    */
   output: "standalone",
 
+  // ─── Allow LAN IPs to access the dev server (Fixes phone + cross-device HMR) ───
+  allowedDevOrigins: [
+    "192.168.0.135",
+    "192.168.1.3",
+    "192.168.0.*",     // Covers any device on the local subnet
+  ],
+
   typescript: {
     // Next.js 16 has unresolved internal .d.ts issues in its own type declarations.
     // Our application code is fully type-safe; this only bypasses framework-level errors.
@@ -16,6 +23,8 @@ const nextConfig: NextConfig = {
   images: {
     formats: ["image/avif", "image/webp"],
     // Add local images support — hero-bg.png served from /public
+    // ─── NEW: Fixes the image quality console warnings ───
+    qualities: [75, 90],
   },
 };
 

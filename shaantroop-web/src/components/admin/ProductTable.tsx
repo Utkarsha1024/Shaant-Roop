@@ -1,18 +1,51 @@
 "use client";
 
+import { useState } from "react";
 import { Product } from "@/lib/types";
+import { assetUrl } from "@/lib/assetUrl";
 
 interface ProductTableProps {
   products: Product[];
   onDelete: (id: number) => void;
   isDeleting: number | null;
+  onUpdateStock: (id: number, newStock: number) => Promise<void>;
+  onToggleDiscontinue: (id: number, discontinued: boolean) => Promise<void>;
 }
 
 export default function ProductTable({
   products,
   onDelete,
   isDeleting,
+  onUpdateStock,
+  onToggleDiscontinue,
 }: ProductTableProps) {
+  const [editingId, setEditingId] = useState<number | null>(null);
+  const [editStock, setEditStock] = useState<number>(0);
+  const [editIsMTO, setEditIsMTO] = useState<boolean>(false);
+  const [isUpdating, setIsUpdating] = useState<boolean>(false);
+
+  function startEditing(p: Product) {
+    setEditingId(p.id);
+    if (p.stockQuantity === -1) {
+      setEditIsMTO(true);
+      setEditStock(0);
+    } else {
+      setEditIsMTO(false);
+      setEditStock(p.stockQuantity);
+    }
+  }
+
+  async function handleSave(id: number) {
+    setIsUpdating(true);
+    try {
+      const finalStock = editIsMTO ? -1 : editStock;
+      await onUpdateStock(id, finalStock);
+      setEditingId(null);
+    } finally {
+      setIsUpdating(false);
+    }
+  }
+
   if (products.length === 0) {
     return (
       <div
@@ -89,7 +122,7 @@ export default function ProductTable({
                   <div className="flex items-center gap-3">
                     {product.imageUrl ? (
                       <img
-                        src={product.imageUrl}
+                        src={assetUrl(product.imageUrl)}
                         alt={product.name}
                         className="w-10 h-10 rounded-lg object-cover flex-shrink-0"
                         style={{ border: "1px solid var(--color-earth-200)" }}
@@ -159,77 +192,167 @@ export default function ProductTable({
                 </td>
 
                 {/* Stock */}
-                <td className="px-5 py-4">
-                  <span
-                    className="inline-flex items-center gap-1 text-xs font-medium"
-                    style={{
-                      color:
-                        product.stockQuantity < 5
-                          ? "#b91c1c"
-                          : "var(--color-sage-600)",
-                    }}
-                  >
-                    <span
-                      className="w-1.5 h-1.5 rounded-full"
-                      style={{
-                        backgroundColor:
-                          product.stockQuantity < 5 ? "#ef4444" : "var(--color-sage-500)",
-                      }}
-                    />
-                    {product.stockQuantity} in stock
-                  </span>
+                <td className="px-5 py-4 min-w-[160px]">
+                  {editingId === product.id ? (
+                    <div className="flex flex-col gap-2">
+                      <label className="flex items-center gap-1.5 text-xs font-medium" style={{ color: "var(--color-green-700)" }}>
+                        <input
+                          type="checkbox"
+                          checked={editIsMTO}
+                          onChange={(e) => setEditIsMTO(e.target.checked)}
+                          className="rounded border-gray-300 text-green-600 focus:ring-green-500"
+                        />
+                        Made to Order
+                      </label>
+                      <input
+                        type="number"
+                        min="0"
+                        className="w-full px-3 py-1.5 text-sm rounded outline-none transition-all duration-150"
+                        style={{
+                          background: "var(--color-earth-50)",
+                          border: "1px solid var(--color-earth-200)",
+                          opacity: editIsMTO ? 0.5 : 1
+                        }}
+                        value={editIsMTO ? "" : editStock}
+                        onChange={(e) => setEditStock(Number(e.target.value))}
+                        disabled={editIsMTO || isUpdating}
+                      />
+                      <div className="flex gap-2 mt-1">
+                        <button
+                          onClick={() => handleSave(product.id)}
+                          disabled={isUpdating}
+                          className="px-3 py-1 rounded text-xs font-medium transition-colors"
+                          style={{ background: "var(--color-green-600)", color: "white" }}
+                        >
+                          {isUpdating ? "Saving..." : "Save"}
+                        </button>
+                        <button
+                          onClick={() => setEditingId(null)}
+                          disabled={isUpdating}
+                          className="px-3 py-1 rounded text-xs font-medium transition-colors"
+                          style={{ background: "var(--color-earth-200)", color: "var(--color-earth-700)" }}
+                        >
+                          Cancel
+                        </button>
+                      </div>
+                    </div>
+                  ) : (
+                    <div className="flex flex-col gap-1.5 items-start">
+                      <span
+                        className="inline-flex items-center gap-1.5 text-xs font-medium"
+                        style={{
+                          color:
+                            product.stockQuantity === -1
+                              ? "var(--color-green-700)"
+                              : product.stockQuantity < 5
+                              ? "#b91c1c"
+                              : "var(--color-sage-600)",
+                        }}
+                      >
+                        {product.stockQuantity !== -1 && (
+                          <span
+                            className="w-1.5 h-1.5 rounded-full"
+                            style={{
+                              backgroundColor:
+                                product.stockQuantity < 5 ? "#ef4444" : "var(--color-sage-500)",
+                            }}
+                          />
+                        )}
+                        {product.stockQuantity === -1 ? "🌿 Made to Order" : `${product.stockQuantity} in stock`}
+                      </span>
+                      <button
+                        onClick={() => startEditing(product)}
+                        className="text-[10px] uppercase tracking-wider font-semibold hover:opacity-80 transition-opacity"
+                        style={{ color: "var(--color-earth-500)" }}
+                      >
+                        Edit Stock
+                      </button>
+                    </div>
+                  )}
                 </td>
 
                 {/* Actions */}
                 <td className="px-5 py-4 text-right">
-                  <button
-                    onClick={() => onDelete(product.id)}
-                    disabled={isDeleting === product.id}
-                    className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-all duration-150 disabled:opacity-50"
-                    style={{
-                      color: "#b91c1c",
-                      background: "transparent",
-                      border: "1px solid #fecaca",
-                    }}
-                    aria-label={`Delete ${product.name}`}
-                  >
-                    {isDeleting === product.id ? (
-                      <svg
-                        className="w-3 h-3 animate-spin"
-                        viewBox="0 0 24 24"
-                        fill="none"
+                  {!product.discontinued ? (
+                    <button
+                      onClick={() => onToggleDiscontinue(product.id, true)}
+                      className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-all duration-150"
+                      style={{
+                        background: "var(--color-earth-100)",
+                        color: "var(--color-earth-600)",
+                      }}
+                      aria-label={`Discontinue ${product.name}`}
+                    >
+                      Discontinue
+                    </button>
+                  ) : (
+                    <div className="flex items-center justify-end gap-2">
+                      <button
+                        onClick={() => onToggleDiscontinue(product.id, false)}
+                        className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-all duration-150"
+                        style={{
+                          background: "#f0fdf4",
+                          color: "#166534",
+                          border: "1px solid #bbf7d0",
+                        }}
+                        aria-label={`Re-continue ${product.name}`}
                       >
-                        <circle
-                          className="opacity-25"
-                          cx="12"
-                          cy="12"
-                          r="10"
-                          stroke="currentColor"
-                          strokeWidth="4"
-                        />
-                        <path
-                          className="opacity-75"
-                          fill="currentColor"
-                          d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"
-                        />
-                      </svg>
-                    ) : (
-                      <svg
-                        viewBox="0 0 24 24"
-                        fill="none"
-                        stroke="currentColor"
-                        strokeWidth={2}
-                        className="w-3 h-3"
+                        Re-continue
+                      </button>
+                      <button
+                        onClick={() => {
+                          if (window.confirm("Are you sure you want to permanently delete this product? This action cannot be undone.")) {
+                            onDelete(product.id);
+                          }
+                        }}
+                        disabled={isDeleting === product.id}
+                        className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-all duration-150 disabled:opacity-50"
+                        style={{
+                          color: "#b91c1c",
+                          background: "transparent",
+                          border: "1px solid #fecaca",
+                        }}
+                        aria-label={`Delete ${product.name}`}
                       >
-                        <path
-                          strokeLinecap="round"
-                          strokeLinejoin="round"
-                          d="M14.74 9l-.346 9m-4.788 0L9.26 9m9.968-3.21c.342.052.682.107 1.022.166m-1.022-.165L18.16 19.673a2.25 2.25 0 01-2.244 2.077H8.084a2.25 2.25 0 01-2.244-2.077L4.772 5.79m14.456 0a48.108 48.108 0 00-3.478-.397m-12 .562c.34-.059.68-.114 1.022-.165m0 0a48.11 48.11 0 013.478-.397m7.5 0v-.916c0-1.18-.91-2.164-2.09-2.201a51.964 51.964 0 00-3.32 0c-1.18.037-2.09 1.022-2.09 2.201v.916m7.5 0a48.667 48.667 0 00-7.5 0"
-                        />
-                      </svg>
-                    )}
-                    Delete
-                  </button>
+                        {isDeleting === product.id ? (
+                          <svg
+                            className="w-3 h-3 animate-spin"
+                            viewBox="0 0 24 24"
+                            fill="none"
+                          >
+                            <circle
+                              className="opacity-25"
+                              cx="12"
+                              cy="12"
+                              r="10"
+                              stroke="currentColor"
+                              strokeWidth="4"
+                            />
+                            <path
+                              className="opacity-75"
+                              fill="currentColor"
+                              d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"
+                            />
+                          </svg>
+                        ) : (
+                          <svg
+                            viewBox="0 0 24 24"
+                            fill="none"
+                            stroke="currentColor"
+                            strokeWidth={2}
+                            className="w-3 h-3"
+                          >
+                            <path
+                              strokeLinecap="round"
+                              strokeLinejoin="round"
+                              d="M14.74 9l-.346 9m-4.788 0L9.26 9m9.968-3.21c.342.052.682.107 1.022.166m-1.022-.165L18.16 19.673a2.25 2.25 0 01-2.244 2.077H8.084a2.25 2.25 0 01-2.244-2.077L4.772 5.79m14.456 0a48.108 48.108 0 00-3.478-.397m-12 .562c.34-.059.68-.114 1.022-.165m0 0a48.11 48.11 0 013.478-.397m7.5 0v-.916c0-1.18-.91-2.164-2.09-2.201a51.964 51.964 0 00-3.32 0c-1.18.037-2.09 1.022-2.09 2.201v.916m7.5 0a48.667 48.667 0 00-7.5 0"
+                            />
+                          </svg>
+                        )}
+                        Delete
+                      </button>
+                    </div>
+                  )}
                 </td>
               </tr>
             ))}

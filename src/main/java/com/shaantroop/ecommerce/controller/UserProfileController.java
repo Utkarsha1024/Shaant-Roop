@@ -1,7 +1,9 @@
 package com.shaantroop.ecommerce.controller;
 
-import com.shaantroop.ecommerce.dto.UserProfileDTO;
+import com.shaantroop.ecommerce.dto.UserProfileRequestDTO;
+import com.shaantroop.ecommerce.dto.UserProfileResponseDTO;
 import com.shaantroop.ecommerce.service.UserProfileService;
+import jakarta.validation.Valid;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.*;
@@ -17,20 +19,20 @@ public class UserProfileController {
     }
 
     @GetMapping
-    public ResponseEntity<UserProfileDTO> getProfile(Authentication authentication) {
+    public ResponseEntity<UserProfileResponseDTO> getProfile(Authentication authentication) {
         // Authentication principle contains the username when using JwtAuthenticationFilter
         String username = authentication.getName();
-        UserProfileDTO profile = userProfileService.getProfile(username);
+        UserProfileResponseDTO profile = userProfileService.getProfile(username);
         return ResponseEntity.ok(profile);
     }
 
     @PutMapping
-    public ResponseEntity<UserProfileDTO> updateProfile(
+    public ResponseEntity<UserProfileResponseDTO> updateProfile(
             Authentication authentication,
-            @RequestBody UserProfileDTO profileDTO
+            @Valid @RequestBody UserProfileRequestDTO profileDTO
     ) {
         String username = authentication.getName();
-        UserProfileDTO updatedProfile = userProfileService.updateProfile(username, profileDTO);
+        UserProfileResponseDTO updatedProfile = userProfileService.updateProfile(username, profileDTO);
         return ResponseEntity.ok(updatedProfile);
     }
 }

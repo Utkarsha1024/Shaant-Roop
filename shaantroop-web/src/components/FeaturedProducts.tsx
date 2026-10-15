@@ -2,7 +2,20 @@
 
 import { useState, useEffect } from "react";
 import { useCart } from "@/context/CartContext";
+import { assetUrl } from "@/lib/assetUrl";
 import type { Product } from "@/lib/types";
+
+// ─── NEW: Dual-URL Strategy to prevent Docker Hairpin crashes ─────────
+const IS_SERVER = typeof window === "undefined";
+
+// 1. THE DATA FETCHER (Smart Routing)
+// Server uses internal Docker network, Phone uses Public IP
+const API_BASE_URL = IS_SERVER
+  ? "http://backend:8085"
+  : (process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8085");
+
+// 2. Asset URLs are handled by the shared assetUrl() helper in @/lib/assetUrl.ts
+// ──────────────────────────────────────────────────────────────────────
 
 /* ─── Visual accents ─────────────────────────────────────────────────── */
 // Cycles through a palette for products that have no image
@@ -18,13 +31,65 @@ function badgeFor(index: number) {
 
 /* ─── Add to cart button ─────────────────────────────────────────────── */
 function AddToCartButton({ product }: { product: Product }) {
-  const { addToCart } = useCart();
-  const [added, setAdded] = useState(false);
+  const { items, addToCart, increment, decrement, removeFromCart } = useCart();
+
+  const cartItem = items.find((i) => i.product.id === product.id);
+
+  if (cartItem) {
+    const isMaxReached =
+      product.stockQuantity !== -1 && cartItem.quantity >= product.stockQuantity;
+
+    const handleMinus = () => {
+      if (cartItem.quantity === 1) {
+        removeFromCart(product.id);
+      } else {
+        decrement(product.id);
+      }
+    };
+
+    const handlePlus = () => {
+      if (!isMaxReached) {
+        increment(product.id);
+      }
+    };
+
+    return (
+      <div className="flex items-center justify-between border border-[#DECEB3] rounded-full px-2 py-1 w-28 bg-white">
+        <button
+          type="button"
+          onClick={handleMinus}
+          className="w-8 h-8 rounded-full bg-[#D7E6D9] text-[#234A31] flex items-center justify-center text-lg hover:bg-[#C1D5C4] transition-colors"
+          aria-label="Decrease quantity"
+        >
+          -
+        </button>
+        <span
+          className="text-sm font-semibold"
+          style={{
+            fontFamily: "var(--font-inter), system-ui, sans-serif",
+            color: "var(--color-earth-900)",
+          }}
+        >
+          {cartItem.quantity}
+        </span>
+        <button
+          type="button"
+          onClick={handlePlus}
+          disabled={isMaxReached}
+          className={`w-8 h-8 rounded-full flex items-center justify-center text-lg transition-colors ${isMaxReached
+            ? "bg-gray-100 text-gray-400 cursor-not-allowed"
+            : "bg-[#D7E6D9] text-[#234A31] hover:bg-[#C1D5C4]"
+            }`}
+          aria-label="Increase quantity"
+        >
+          +
+        </button>
+      </div>
+    );
+  }
 
   const handleAdd = () => {
     addToCart(product);
-    setAdded(true);
-    setTimeout(() => setAdded(false), 1500);
   };
 
   return (
@@ -34,15 +99,13 @@ function AddToCartButton({ product }: { product: Product }) {
       aria-label={`Add ${product.name} to cart`}
       className="px-4 py-2 rounded-full text-xs tracking-wider uppercase font-medium transition-all duration-300 hover:scale-105 hover:shadow-md active:scale-95"
       style={{
-        background: added
-          ? "linear-gradient(135deg, var(--color-green-500), var(--color-green-600))"
-          : "linear-gradient(135deg, var(--color-green-600), var(--color-green-700))",
+        background: "linear-gradient(135deg, var(--color-green-600), var(--color-green-700))",
         color: "#FFFDF7",
         fontFamily: "var(--font-inter), system-ui, sans-serif",
         letterSpacing: "0.1em",
       }}
     >
-      {added ? "✓ Added" : "Add to Cart"}
+      Add to Cart
     </button>
   );
 }
@@ -59,17 +122,22 @@ function ProductCard({ product, index }: { product: Product; index: number }) {
     >
       {/* Color swatch / image area */}
       <div
-        className="relative h-48 sm:h-52 xl:h-56 flex items-center justify-center transition-transform duration-500 group-hover:scale-105 origin-bottom overflow-hidden"
+        className={`relative h-48 sm:h-52 xl:h-56 flex items-center justify-center transition-transform duration-500 origin-bottom overflow-hidden ${product.stockQuantity === 0 || product.discontinued ? "" : "group-hover:scale-105"
+          }`}
         style={{
           background: product.imageUrl
             ? undefined
             : `linear-gradient(135deg, ${color}22, ${color}55)`,
         }}
       >
+        {(product.stockQuantity === 0 || product.discontinued) && (
+          <div className="absolute inset-0 bg-white/50 z-10"></div>
+        )}
+
         {product.imageUrl ? (
           // eslint-disable-next-line @next/next/no-img-element
           <img
-            src={product.imageUrl}
+            src={assetUrl(product.imageUrl)}
             alt={product.name}
             className="w-full h-full object-cover"
           />
@@ -137,19 +205,59 @@ function ProductCard({ product, index }: { product: Product; index: number }) {
         >
           {product.description}
         </p>
-        <div className="flex items-center justify-between">
-          <span
+
+        {product.stockQuantity === -1 && !product.discontinued && (
+          <p className="text-xs mb-3 font-medium" style={{ color: "var(--color-green-700)", fontFamily: "var(--font-inter), system-ui, sans-serif" }}>
+            🌿 Made to Order
+          </p>
+        )}
+        {product.stockQuantity > 0 && product.stockQuantity <= 5 && !product.discontinued && (
+          <p className="text-xs mb-3 font-semibold text-red-500" style={{ fontFamily: "var(--font-inter), system-ui, sans-serif" }}>
+            Only {product.stockQuantity} left
+          </p>
+        )}
+
+        {product.discontinued ? (
+          <div
+            className="w-full py-2.5 rounded-full text-center text-xs tracking-wider uppercase font-semibold"
             style={{
-              fontFamily: "var(--font-cormorant), Georgia, serif",
-              fontSize: "1.4rem",
-              fontWeight: 400,
-              color: "var(--color-earth-900)",
+              backgroundColor: "#f3f4f6", // bg-gray-100
+              border: "1px solid #d1d5db", // border-gray-300
+              color: "#4b5563", // text-gray-600
+              fontFamily: "var(--font-inter), system-ui, sans-serif",
+              letterSpacing: "0.1em",
             }}
           >
-            ₹{product.price}
-          </span>
-          <AddToCartButton product={product} />
-        </div>
+            Discontinued
+          </div>
+        ) : product.stockQuantity === 0 ? (
+          <div
+            className="w-full py-2.5 rounded-full text-center text-xs tracking-wider uppercase font-semibold"
+            style={{
+              backgroundColor: "#FFF4F4",
+              border: "1px solid #5925254D",
+              color: "#592525",
+              fontFamily: "var(--font-inter), system-ui, sans-serif",
+              letterSpacing: "0.1em",
+            }}
+          >
+            Out of Stock
+          </div>
+        ) : (
+          <div className="flex items-center justify-between">
+            <span
+              style={{
+                fontFamily: "var(--font-cormorant), Georgia, serif",
+                fontSize: "1.4rem",
+                fontWeight: 400,
+                color: "var(--color-earth-900)",
+              }}
+            >
+              ₹{product.price}
+            </span>
+            <AddToCartButton product={product} />
+          </div>
+        )}
       </div>
     </article>
   );
@@ -193,11 +301,13 @@ export default function FeaturedProducts() {
         // cache: 'no-store' is enforced via the fetch option so Next.js
         // never serves a stale cached response for live product data.
         const res = await fetch(
-          `${process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8085"}/api/products`,
+          `${API_BASE_URL}/api/products`, // Uses the smart data fetching variable
           { cache: "no-store" }
         );
         if (!res.ok) throw new Error(`Server returned ${res.status}`);
-        const data: Product[] = await res.json();
+
+        const data: Product[] = (await res.json()) || [];
+
         if (!cancelled) setProducts(data);
       } catch (err) {
         if (!cancelled)

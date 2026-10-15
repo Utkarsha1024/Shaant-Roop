@@ -1,6 +1,7 @@
 package com.shaantroop.ecommerce.service;
 
-import com.shaantroop.ecommerce.dto.UserProfileDTO;
+import com.shaantroop.ecommerce.dto.UserProfileRequestDTO;
+import com.shaantroop.ecommerce.dto.UserProfileResponseDTO;
 import com.shaantroop.ecommerce.model.User;
 import com.shaantroop.ecommerce.model.UserProfile;
 import com.shaantroop.ecommerce.repository.UserProfileRepository;
@@ -22,17 +23,17 @@ public class UserProfileService {
     }
 
     @Transactional(readOnly = true)
-    public UserProfileDTO getProfile(String username) {
+    public UserProfileResponseDTO getProfile(String username) {
         User user = userRepository.findByUsername(username)
                 .orElseThrow(() -> new RuntimeException("User not found"));
 
         return userProfileRepository.findByUserId(user.getId())
-                .map(UserProfileDTO::fromEntity)
-                .orElse(new UserProfileDTO());
+                .map(UserProfileResponseDTO::fromEntity)
+                .orElse(new UserProfileResponseDTO());
     }
 
     @Transactional
-    public UserProfileDTO updateProfile(String username, UserProfileDTO dto) {
+    public UserProfileResponseDTO updateProfile(String username, UserProfileRequestDTO dto) {
         User user = userRepository.findByUsername(username)
                 .orElseThrow(() -> new RuntimeException("User not found"));
 
@@ -48,9 +49,14 @@ public class UserProfileService {
 
         profile.setFullName(dto.getFullName());
         profile.setAltContactEmail(dto.getAltContactEmail());
-        profile.setPrimaryShippingAddress(dto.getPrimaryShippingAddress());
+        profile.setPhone(dto.getPhone());
+        profile.setAddressLine(dto.getAddressLine());
+        profile.setCity(dto.getCity());
+        profile.setState(dto.getState());
+        profile.setDateOfBirth(dto.getDateOfBirth());
+        profile.setCountry(dto.getCountry());
 
         UserProfile savedProfile = userProfileRepository.save(profile);
-        return UserProfileDTO.fromEntity(savedProfile);
+        return UserProfileResponseDTO.fromEntity(savedProfile);
     }
 }

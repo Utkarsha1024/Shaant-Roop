@@ -5,7 +5,7 @@ import { Category, ProductFormData } from "@/lib/types";
 
 interface ProductFormProps {
   categories: Category[];
-  onSubmit: (data: ProductFormData) => Promise<void>;
+  onSubmit: (data: ProductFormData, file: File | null) => Promise<void>;
   isSubmitting: boolean;
 }
 
@@ -62,6 +62,25 @@ export default function ProductForm({
 }: ProductFormProps) {
   const [form, setForm] = useState<ProductFormData>(EMPTY_FORM);
   const [error, setError] = useState<string | null>(null);
+  const [isMadeToOrder, setIsMadeToOrder] = useState(false);
+  const [selectedFile, setSelectedFile] = useState<File | null>(null);
+  const [previewUrl, setPreviewUrl] = useState<string | null>(null);
+  const [useUrlInput, setUseUrlInput] = useState(false);
+
+  useEffect(() => {
+    return () => {
+      if (previewUrl) URL.revokeObjectURL(previewUrl);
+    };
+  }, [previewUrl]);
+
+  function handleFileChange(e: React.ChangeEvent<HTMLInputElement>) {
+    if (e.target.files && e.target.files[0]) {
+      const file = e.target.files[0];
+      setSelectedFile(file);
+      setPreviewUrl(URL.createObjectURL(file));
+      setForm((prev) => ({ ...prev, imageUrl: "" }));
+    }
+  }
 
   function handleChange(
     e: React.ChangeEvent<
@@ -79,16 +98,25 @@ export default function ProductForm({
     if (!form.categoryId) return setError("Please select a category.");
     if (!form.price || isNaN(Number(form.price)) || Number(form.price) <= 0)
       return setError("Please enter a valid price.");
-    if (
-      !form.stockQuantity ||
-      isNaN(Number(form.stockQuantity)) ||
-      Number(form.stockQuantity) < 0
-    )
-      return setError("Please enter a valid stock quantity.");
+      
+    if (!isMadeToOrder) {
+      if (
+        !form.stockQuantity ||
+        isNaN(Number(form.stockQuantity)) ||
+        Number(form.stockQuantity) < 0
+      )
+        return setError("Please enter a valid stock quantity.");
+    }
 
     try {
-      await onSubmit(form);
+      await onSubmit({
+        ...form,
+        stockQuantity: isMadeToOrder ? "-1" : form.stockQuantity,
+      }, selectedFile);
       setForm(EMPTY_FORM);
+      setIsMadeToOrder(false);
+      setSelectedFile(null);
+      setPreviewUrl(null);
     } catch (err) {
       setError((err as Error).message ?? "Something went wrong.");
     }
@@ -212,38 +240,100 @@ export default function ProductForm({
 
         {/* Stock */}
         <div>
-          <FieldLabel htmlFor="product-stock" required>
-            Stock Quantity
-          </FieldLabel>
+          <div className="flex items-center justify-between mb-1.5">
+            <FieldLabel htmlFor="product-stock" required={!isMadeToOrder}>
+              Stock Quantity
+            </FieldLabel>
+            <label className="flex items-center gap-1.5 text-xs font-medium" style={{ color: "var(--color-green-700)" }}>
+              <input
+                type="checkbox"
+                checked={isMadeToOrder}
+                onChange={(e) => setIsMadeToOrder(e.target.checked)}
+                className="rounded border-gray-300 text-green-600 focus:ring-green-500"
+              />
+              🌿 Made to Order
+            </label>
+          </div>
           <input
             id="product-stock"
             name="stockQuantity"
             type="number"
             min="0"
             step="1"
-            value={form.stockQuantity}
+            value={isMadeToOrder ? "" : form.stockQuantity}
             onChange={handleChange}
-            placeholder="50"
+            placeholder={isMadeToOrder ? "N/A" : "50"}
             className={inputClass}
-            style={inputStyle}
-            required
-            aria-required="true"
+            style={{ ...inputStyle, opacity: isMadeToOrder ? 0.5 : 1 }}
+            required={!isMadeToOrder}
+            disabled={isMadeToOrder}
+            aria-required={!isMadeToOrder}
           />
         </div>
 
-        {/* Image URL */}
-        <div>
-          <FieldLabel htmlFor="product-image">Image URL</FieldLabel>
-          <input
-            id="product-image"
-            name="imageUrl"
-            type="url"
-            value={form.imageUrl}
-            onChange={handleChange}
-            placeholder="https://…"
-            className={inputClass}
-            style={inputStyle}
-          />
+        {/* Image Upload */}
+        <div className="sm:col-span-2">
+          <div className="flex items-center justify-between mb-1.5">
+            <FieldLabel htmlFor="product-image">Product Image</FieldLabel>
+            <button
+              type="button"
+              onClick={() => setUseUrlInput(!useUrlInput)}
+              className="text-xs underline transition-colors"
+              style={{ color: "var(--color-earth-600)" }}
+            >
+              {useUrlInput ? "Use File Upload" : "Or paste URL"}
+            </button>
+          </div>
+
+          {useUrlInput ? (
+            <input
+              id="product-image"
+              name="imageUrl"
+              type="url"
+              value={form.imageUrl}
+              onChange={handleChange}
+              placeholder="https://…"
+              className={inputClass}
+              style={inputStyle}
+            />
+          ) : (
+            <div
+              className="relative border-2 border-dashed rounded-xl p-6 text-center transition-colors flex flex-col items-center justify-center min-h-[120px]"
+              style={{
+                borderColor: "var(--color-earth-300)",
+                background: "var(--color-earth-50)",
+              }}
+            >
+              <input
+                type="file"
+                accept="image/*"
+                onChange={handleFileChange}
+                className="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-10"
+                title="Click to upload or drag and drop"
+              />
+              {previewUrl ? (
+                <div className="flex flex-col items-center gap-2">
+                  {/* eslint-disable-next-line @next/next/no-img-element */}
+                  <img src={previewUrl} alt="Preview" className="h-24 object-contain rounded shadow-sm" />
+                  <span className="text-xs" style={{ color: "var(--color-earth-600)" }}>
+                    Click or drag to replace
+                  </span>
+                </div>
+              ) : (
+                <div className="flex flex-col items-center gap-2 pointer-events-none">
+                  <svg className="w-8 h-8" style={{ color: "var(--color-earth-400)" }} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M3 16.5v2.25A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75V16.5m-13.5-9L12 3m0 0l4.5 4.5M12 3v13.5" />
+                  </svg>
+                  <span className="text-sm font-medium" style={{ color: "var(--color-earth-700)" }}>
+                    Click to upload or drag and drop
+                  </span>
+                  <span className="text-xs" style={{ color: "var(--color-earth-500)" }}>
+                    JPG, PNG, GIF up to 5MB
+                  </span>
+                </div>
+              )}
+            </div>
+          )}
         </div>
 
         {/* Description */}

@@ -18,6 +18,7 @@ public class ProductDTO {
     private String imageUrl;
     private Long categoryId;
     private String categoryName;
+    private boolean discontinued;
 
     public static ProductDTO fromEntity(Product product) {
         if (product == null) {
@@ -29,7 +30,8 @@ public class ProductDTO {
                 .description(product.getDescription())
                 .price(product.getPrice())
                 .stockQuantity(product.getStockQuantity())
-                .imageUrl(product.getImageUrl());
+                .imageUrl(product.getImageUrl())
+                .discontinued(product.isDiscontinued());
 
         if (product.getCategory() != null) {
             builder.categoryId(product.getCategory().getId())

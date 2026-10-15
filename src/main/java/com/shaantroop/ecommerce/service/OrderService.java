@@ -59,6 +59,16 @@ public class OrderService {
                     .orElseThrow(() -> new ResourceNotFoundException("Product", "id", itemRequest.getProductId()));
 
             int qty = itemRequest.getQuantity();
+
+            if (product.getStockQuantity() != -1 && product.getStockQuantity() < qty) {
+                throw new IllegalArgumentException("Insufficient stock for product: " + product.getName());
+            }
+
+            if (product.getStockQuantity() != -1) {
+                product.setStockQuantity(product.getStockQuantity() - qty);
+                productRepository.save(product);
+            }
+
             BigDecimal unitPrice = product.getPrice();
             BigDecimal lineTotal = unitPrice.multiply(BigDecimal.valueOf(qty));
 
@@ -68,6 +78,7 @@ public class OrderService {
             OrderItem orderItem = OrderItem.builder()
                     .order(order)
                     .product(product)
+                    .productName(product.getName())
                     .quantity(qty)
                     .unitPrice(unitPrice)
                     .build();
@@ -111,9 +122,9 @@ public class OrderService {
     public OrderDTO mapToDTO(Order order) {
         List<OrderItemDTO> itemDTOs = order.getItems().stream().map(item -> OrderItemDTO.builder()
                 .id(item.getId())
-                .productId(item.getProduct().getId())
-                .productName(item.getProduct().getName())
-                .productImageUrl(item.getProduct().getImageUrl())
+                .productId(item.getProduct() != null ? item.getProduct().getId() : null)
+                .productName(item.getProductName() != null ? item.getProductName() : (item.getProduct() != null ? item.getProduct().getName() : "Unknown Product"))
+                .productImageUrl(item.getProduct() != null ? item.getProduct().getImageUrl() : null)
                 .quantity(item.getQuantity())
                 .unitPrice(item.getUnitPrice())
                 .build()).collect(Collectors.toList());

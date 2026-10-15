@@ -43,6 +43,9 @@ function cartReducer(state: CartState, action: CartAction): CartState {
     case "ADD": {
       const existing = state.items.find((i) => i.product.id === action.product.id);
       if (existing) {
+        if (action.product.stockQuantity !== -1 && existing.quantity >= action.product.stockQuantity) {
+          return state; // Reached stock limit
+        }
         return {
           items: state.items.map((i) =>
             i.product.id === action.product.id
@@ -50,6 +53,9 @@ function cartReducer(state: CartState, action: CartAction): CartState {
               : i
           ),
         };
+      }
+      if (action.product.stockQuantity === 0) {
+        return state;
       }
       return { items: [...state.items, { product: action.product, quantity: 1 }] };
     }
@@ -59,9 +65,15 @@ function cartReducer(state: CartState, action: CartAction): CartState {
 
     case "INCREMENT":
       return {
-        items: state.items.map((i) =>
-          i.product.id === action.productId ? { ...i, quantity: i.quantity + 1 } : i
-        ),
+        items: state.items.map((i) => {
+          if (i.product.id === action.productId) {
+            if (i.product.stockQuantity !== -1 && i.quantity >= i.product.stockQuantity) {
+              return i; // Reached stock limit
+            }
+            return { ...i, quantity: i.quantity + 1 };
+          }
+          return i;
+        }),
       };
 
     case "DECREMENT":

@@ -2,15 +2,21 @@
  * Authenticated fetch utility for the Shaant Roop admin dashboard.
  *
  * Strategy:
- *  1. First tries to read the JWT from the `shaantroop_token` HttpOnly cookie.
- *     HttpOnly cookies are sent automatically by the browser on same-origin requests,
- *     so for cross-origin calls we rely on `credentials: "include"`.
- *  2. Falls back to `localStorage` (dev-only) if no cookie is present, making it
- *     easy to test from Postman-style tools or when the Spring Boot server is on
- *     a different port and `SameSite` restrictions prevent cookie forwarding.
+ * 1. First tries to read the JWT from the `shaantroop_token` HttpOnly cookie.
+ * HttpOnly cookies are sent automatically by the browser on same-origin requests,
+ * so for cross-origin calls we rely on `credentials: "include"`.
+ * 2. Falls back to `localStorage` (dev-only) if no cookie is present, making it
+ * easy to test from Postman-style tools or when the Spring Boot server is on
+ * a different port and `SameSite` restrictions prevent cookie forwarding.
  */
 
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8085";
+// ─── NEW: Dual-URL Strategy to prevent Docker Hairpin crashes ─────────
+const IS_SERVER = typeof window === "undefined";
+
+const API_BASE_URL = IS_SERVER
+  ? "http://backend:8085"                                         // Server-Side (Docker Internal Network)
+  : (process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8085"); // Client-Side (Phone/Mac Browser)
+// ──────────────────────────────────────────────────────────────────────
 
 /**
  * Reads the JWT from localStorage (dev fallback only).
@@ -42,10 +48,10 @@ function buildHeaders(extraHeaders?: HeadersInit): HeadersInit {
 
 /**
  * Wrapper around the native fetch API that:
- *  - Prefixes the API base URL
- *  - Injects the JWT Authorization header
- *  - Sends credentials (cookies) for cross-origin requests
- *  - Throws a descriptive Error on non-2xx responses
+ * - Prefixes the API base URL
+ * - Injects the JWT Authorization header
+ * - Sends credentials (cookies) for cross-origin requests
+ * - Throws a descriptive Error on non-2xx responses
  */
 export async function apiFetch<T = unknown>(
   path: string,

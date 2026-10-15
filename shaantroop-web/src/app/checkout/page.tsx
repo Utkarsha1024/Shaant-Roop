@@ -5,6 +5,7 @@ import { useState, useEffect, type FormEvent } from "react";
 import { useCart, type CartItem } from "@/context/CartContext";
 import { useAuth } from "@/context/AuthContext";
 import { apiFetch } from "@/lib/apiFetch";
+import { assetUrl } from "@/lib/assetUrl";
 
 // ─── Types ───────────────────────────────────────────────────────────────────
 type CheckoutMode = "choose" | "guest";
@@ -16,6 +17,7 @@ interface GuestFormData {
   address: string;
   city: string;
   state: string;
+  country: string;
   pincode: string;
 }
 
@@ -26,6 +28,7 @@ const EMPTY_GUEST: GuestFormData = {
   address: "",
   city: "",
   state: "",
+  country: "",
   pincode: "",
 };
 
@@ -186,7 +189,7 @@ function OrderSummary() {
                     {item.product.imageUrl ? (
                       // eslint-disable-next-line @next/next/no-img-element
                       <img
-                        src={item.product.imageUrl}
+                        src={assetUrl(item.product.imageUrl)}
                         alt={item.product.name}
                         className="w-full h-full object-cover"
                       />
@@ -443,7 +446,7 @@ export default function CheckoutPage() {
         contactName: form.name,
         contactEmail: form.email,
         contactPhone: form.phone,
-        shippingAddress: `${form.address}, ${form.city}, ${form.state} - ${form.pincode}`,
+        shippingAddress: `${form.address}, ${form.city}, ${form.state}, ${form.country} - ${form.pincode}`,
         items: items.map((cartItem) => ({
           productId: cartItem.product.id,
           quantity: cartItem.quantity,
@@ -760,12 +763,15 @@ export default function CheckoutPage() {
                         value={form.address}
                         onChange={setField("address")}
                       />
-                      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-                        <div className="sm:col-span-1">
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                        <div>
                           <Field id="guest-city" label="City" placeholder="Bengaluru" autoComplete="address-level2" value={form.city} onChange={setField("city")} />
                         </div>
                         <div>
                           <Field id="guest-state" label="State" placeholder="Karnataka" autoComplete="address-level1" value={form.state} onChange={setField("state")} />
+                        </div>
+                        <div>
+                          <Field id="guest-country" label="Country" placeholder="India" autoComplete="country-name" value={form.country} onChange={setField("country")} />
                         </div>
                         <div>
                           <Field id="guest-pincode" label="Pincode" placeholder="560001" autoComplete="postal-code" value={form.pincode} onChange={setField("pincode")} />

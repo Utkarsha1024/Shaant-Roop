@@ -5,6 +5,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useAuth } from "@/context/AuthContext";
 import { api } from "@/lib/apiFetch";
+import { assetUrl } from "@/lib/assetUrl";
 import type { OrderDTO } from "@/lib/types";
 
 // ─── Status badge config ──────────────────────────────────────────────────────
@@ -41,11 +42,24 @@ function StatusBadge({ status }: { status: OrderStatus }) {
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
 function formatDate(iso: string) {
-  return new Date(iso).toLocaleDateString("en-IN", {
+  // 1. Force JavaScript to recognize the backend timestamp as UTC
+  const utcString = iso.endsWith('Z') ? iso : `${iso}Z`;
+  const date = new Date(utcString);
+
+  // 2. Format the output explicitly to Indian Standard Time (IST)
+  const formattedDate = date.toLocaleString("en-IN", {
+    timeZone: "Asia/Kolkata",
     day: "numeric",
     month: "short",
     year: "numeric",
+    hour: "numeric",
+    minute: "2-digit",
+    hour12: true,
+    timeZoneName: "short", // Adds 'IST'
   });
+
+  // 3. Find 'am' or 'pm' and convert exactly that part to uppercase
+  return formattedDate.replace(/\b(am|pm)\b/i, (match) => match.toUpperCase());
 }
 
 function formatINR(amount: number) {
@@ -449,7 +463,7 @@ export default function MyOrdersPage() {
                               {item.productImageUrl ? (
                                 // eslint-disable-next-line @next/next/no-img-element
                                 <img
-                                  src={item.productImageUrl}
+                                  src={assetUrl(item.productImageUrl)}
                                   alt={item.productName}
                                   className="w-full h-full object-cover"
                                 />

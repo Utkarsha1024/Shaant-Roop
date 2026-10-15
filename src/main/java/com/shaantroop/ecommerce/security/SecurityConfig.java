@@ -1,5 +1,6 @@
 package com.shaantroop.ecommerce.security;
 
+import org.springframework.beans.factory.annotation.Value; // NEW: 1. Added the Value import
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.http.HttpMethod;
@@ -24,6 +25,11 @@ import java.util.List;
 @EnableMethodSecurity
 public class SecurityConfig {
 
+    // NEW: 2. Added the variable to hold your domain list right above the
+    // constructor
+    @Value("${app.cors.allowed-origins}")
+    private List<String> allowedOrigins;
+
     private final JwtAuthenticationFilter jwtAuthFilter;
 
     public SecurityConfig(JwtAuthenticationFilter jwtAuthFilter) {
@@ -37,17 +43,28 @@ public class SecurityConfig {
                 .csrf(AbstractHttpConfigurer::disable)
                 .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
                 .authorizeHttpRequests(auth -> auth
-                        .requestMatchers("/api/products").permitAll()
-                        .requestMatchers("/api/products/**").permitAll()
-                        .requestMatchers("/api/categories").permitAll()
-                        .requestMatchers("/api/categories/**").permitAll()
+                        // 1. PUBLIC STOREFRONT (GET ONLY)
+                        .requestMatchers(HttpMethod.GET, "/api/products").permitAll()
+                        .requestMatchers(HttpMethod.GET, "/api/products/**").permitAll()
+                        .requestMatchers(HttpMethod.GET, "/api/categories").permitAll()
+                        .requestMatchers(HttpMethod.GET, "/api/categories/**").permitAll()
+
+                        // 2. ADMIN CONTROLS (POST, PUT, DELETE for products/categories)
+                        .requestMatchers("/api/products/**").hasRole("ADMIN")
+                        .requestMatchers("/api/categories/**").hasRole("ADMIN")
+                        .requestMatchers(HttpMethod.POST, "/api/upload").hasRole("ADMIN")
+                        .requestMatchers("/admin/**").hasRole("ADMIN")
+                        .requestMatchers("/api/admin/**").hasRole("ADMIN")
+
+                        // 3. OTHER PUBLIC ROUTES
+                        .requestMatchers("/uploads/**").permitAll() // Allow serving static images
                         .requestMatchers("/api/settings/**").permitAll() // Allow public settings fetch
                         .requestMatchers("/api/auth/**").permitAll() // Allow auth endpoints
                         .requestMatchers("/actuator/**").permitAll() // Allow health checks
-                        .requestMatchers("/admin/**").hasRole("ADMIN")
-                        .requestMatchers("/api/admin/**").hasRole("ADMIN")
                         .requestMatchers(HttpMethod.POST, "/api/orders").permitAll() // STRICT POST ONLY for guest
                                                                                      // checkout
+
+                        // 4. CATCH-ALL
                         .anyRequest().authenticated())
                 .addFilterBefore(jwtAuthFilter, UsernamePasswordAuthenticationFilter.class);
 
@@ -57,8 +74,10 @@ public class SecurityConfig {
     @Bean
     public CorsConfigurationSource corsConfigurationSource() {
         CorsConfiguration configuration = new CorsConfiguration();
-        // Allow Next.js frontend origin
-        configuration.setAllowedOrigins(List.of("http://localhost:3000", "http://localhost:3001"));
+
+        // NEW: 3. Swapped the hardcoded list for the new dynamic variable
+        configuration.setAllowedOrigins(allowedOrigins);
+
         configuration.setAllowedMethods(Arrays.asList("GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"));
         configuration.setAllowedHeaders(Arrays.asList("Authorization", "Content-Type", "X-Requested-With"));
         configuration.setAllowCredentials(true);
