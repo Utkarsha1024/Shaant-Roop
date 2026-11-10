@@ -106,10 +106,10 @@ export default function AdminStatsPage() {
                     >
                       <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f0f0f0" />
                       <XAxis dataKey="date" tick={{ fill: "#888", fontSize: 12 }} axisLine={false} tickLine={false} dy={10} />
-                      <YAxis tick={{ fill: "#888", fontSize: 12 }} axisLine={false} tickLine={false} dx={-10} tickFormatter={(val) => `$${val}`} />
+                      <YAxis tick={{ fill: "#888", fontSize: 12 }} axisLine={false} tickLine={false} dx={-10} tickFormatter={(val) => `₹${val}`} />
                       <Tooltip 
                         contentStyle={{ borderRadius: '8px', border: 'none', boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)' }}
-                        formatter={(value: number) => [`$${value.toFixed(2)}`, "Revenue"]}
+                        formatter={(value: any) => [`₹${Number(value || 0).toFixed(2)}`, "Revenue"]}
                         labelStyle={{ fontWeight: 'bold', color: '#333', marginBottom: '4px' }}
                       />
                       <Line type="monotone" dataKey="revenue" stroke="#F4C130" strokeWidth={3} dot={{ r: 4, fill: "#F4C130", strokeWidth: 0 }} activeDot={{ r: 6, fill: "#234A31", stroke: "#fff", strokeWidth: 2 }} />
@@ -131,9 +131,9 @@ export default function AdminStatsPage() {
                       layout="vertical"
                     >
                       <CartesianGrid strokeDasharray="3 3" horizontal={true} vertical={false} stroke="#f0f0f0" />
-                      <XAxis type="number" tick={{ fill: "#888", fontSize: 12 }} axisLine={false} tickLine={false} tickFormatter={(val) => `$${val}`} />
+                      <XAxis type="number" tick={{ fill: "#888", fontSize: 12 }} axisLine={false} tickLine={false} tickFormatter={(val) => `₹${val}`} />
                       <YAxis dataKey="categoryName" type="category" tick={{ fill: "#888", fontSize: 12 }} axisLine={false} tickLine={false} width={100} />
-                      <Tooltip cursor={{fill: '#f9fafb'}} contentStyle={{ borderRadius: '8px', border: 'none', boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)' }} formatter={(value: number) => [`$${value.toFixed(2)}`, "Revenue"]} />
+                      <Tooltip cursor={{fill: '#f9fafb'}} contentStyle={{ borderRadius: '8px', border: 'none', boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)' }} formatter={(value: any) => [`₹${Number(value || 0).toFixed(2)}`, "Revenue"]} />
                       <Bar dataKey="totalRevenue" fill="#234A31" radius={[0, 4, 4, 0]} barSize={24} />
                     </BarChart>
                   </ResponsiveContainer>
@@ -160,7 +160,7 @@ export default function AdminStatsPage() {
                           cy="50%"
                           outerRadius={100}
                           fill="#8884d8"
-                          label={({ name, percent }) => `${name} (${(percent * 100).toFixed(0)}%)`}
+                          label={({ name, percent }: any) => `${name} (${((percent ?? 0) * 100).toFixed(0)}%)`}
                         >
                           {stats.topSellingProducts.map((entry, index) => (
                             <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />

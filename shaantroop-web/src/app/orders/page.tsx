@@ -94,7 +94,8 @@ export default function MyOrdersPage() {
         const token = localStorage.getItem('shaantroop_token');
 
         // 2. Fire the request with the token attached to the headers
-        const res = await fetch('http://localhost:8085/api/orders/my-orders', {
+        const apiBase = process.env.NEXT_PUBLIC_API_URL || process.env.NEXT_PUBLIC_API_BASE_URL || "http://localhost:8085";
+        const res = await fetch(`${apiBase}/api/orders/my-orders`, {
           method: 'GET',
           headers: {
             'Content-Type': 'application/json',

@@ -28,11 +28,11 @@ public class AnalyticsService {
     private final ProductRepository productRepository;
     private final CategoryRepository categoryRepository;
 
-    public AnalyticsService(OrderRepository orderRepository, 
-                            UserProfileRepository userProfileRepository, 
-                            UserRepository userRepository,
-                            ProductRepository productRepository,
-                            CategoryRepository categoryRepository) {
+    public AnalyticsService(OrderRepository orderRepository,
+            UserProfileRepository userProfileRepository,
+            UserRepository userRepository,
+            ProductRepository productRepository,
+            CategoryRepository categoryRepository) {
         this.orderRepository = orderRepository;
         this.userProfileRepository = userProfileRepository;
         this.userRepository = userRepository;
@@ -45,8 +45,8 @@ public class AnalyticsService {
         List<DashboardStatsResponseDTO.SalesData> salesOverTime = getSalesOverTime();
 
         BigDecimal totalRevenue = salesOverTime.stream()
-                .map(DashboardStatsResponseDTO.SalesData::getRevenue)
-                .reduce(BigDecimal.ZERO, BigDecimal::add);
+                .map(data -> data.getRevenue() != null ? data.getRevenue() : BigDecimal.ZERO)
+                .reduce(BigDecimal.ZERO, (a, b) -> a.add(b));
 
         return DashboardStatsResponseDTO.builder()
                 .totalRevenue(totalRevenue)
@@ -66,8 +66,8 @@ public class AnalyticsService {
         List<SalesDataPoint> points = orderRepository.getSalesOverTime();
         return points.stream()
                 .map(p -> new DashboardStatsResponseDTO.SalesData(
-                        p.getOrderDate().toString(),
-                        p.getTotalRevenue()))
+                        p.getOrderDate() != null ? p.getOrderDate().toString() : "",
+                        p.getTotalRevenue() != null ? p.getTotalRevenue() : BigDecimal.ZERO))
                 .collect(Collectors.toList());
     }
 
@@ -115,25 +115,42 @@ public class AnalyticsService {
     }
 
     /**
-     * Extracts state from address strings expected in format:
-     * "Address, City, State - Pincode"
+     * Extracts the state from addresses stored in one of two formats:
+     *
+     * <ul>
+     * <li>4-part (with country): {@code "Address, City, State, Country - Pincode"}
+     * → comma-index 2 is State.</li>
+     * <li>3-part (legacy, no country): {@code "Address, City, State - Pincode"}
+     * → comma-index 2 is "State - Pincode"; we strip everything after " - ".</li>
+     * </ul>
+     *
+     * In the 4-part format the last comma segment is {@code "Country - Pincode"},
+     * so reading {@code commaParts[length - 1]} was returning the country.
+     * The state is always at index 2 (0-based), regardless of whether Country is
+     * present.
      */
     private String extractStateFromAddress(String address) {
         if (address == null)
             return null;
 
-        String[] commaParts = address.split(",");
-        if (commaParts.length >= 3) {
-            // Expected to be the 3rd part or last part containing a hyphen
-            String statePart = commaParts[commaParts.length - 1];
-            // statePart is likely " State - Pincode"
-            String[] dashParts = statePart.split("-");
-            if (dashParts.length >= 1) {
-                return dashParts[0].trim();
-            }
+        // Split on ", " (comma + space) to avoid spurious splits inside the pincode.
+        String[] commaParts = address.split(",\\s*");
+
+        // Need at least: Address(0), City(1), State(2)
+        if (commaParts.length < 3)
+            return null;
+
+        // Index 2 is always State, in both the 3-part and 4-part formats.
+        String statePart = commaParts[2].trim();
+
+        // For the legacy 3-part format the state segment looks like "Karnataka -
+        // 560001".
+        // Strip the " - Pincode" suffix if present.
+        int dashIdx = statePart.indexOf(" - ");
+        if (dashIdx != -1) {
+            statePart = statePart.substring(0, dashIdx).trim();
         }
 
-        // Fallback for simple single-word address mapping if formatted differently
-        return "Unknown";
+        return statePart.isBlank() ? null : statePart;
     }
 }

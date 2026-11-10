@@ -15,7 +15,6 @@ import com.shaantroop.ecommerce.repository.UserRepository;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import com.shaantroop.ecommerce.model.Product;
-
 import java.math.BigDecimal;
 import java.util.ArrayList;
 import java.util.List;
@@ -55,7 +54,8 @@ public class OrderService {
         List<OrderItem> items = new ArrayList<>();
 
         for (OrderItemRequestDTO itemRequest : request.getItems()) {
-            Product product = productRepository.findById(itemRequest.getProductId())
+            // Updated to use the pessimistic lock method
+            Product product = productRepository.findByIdForUpdate(itemRequest.getProductId())
                     .orElseThrow(() -> new ResourceNotFoundException("Product", "id", itemRequest.getProductId()));
 
             int qty = itemRequest.getQuantity();
@@ -123,7 +123,8 @@ public class OrderService {
         List<OrderItemDTO> itemDTOs = order.getItems().stream().map(item -> OrderItemDTO.builder()
                 .id(item.getId())
                 .productId(item.getProduct() != null ? item.getProduct().getId() : null)
-                .productName(item.getProductName() != null ? item.getProductName() : (item.getProduct() != null ? item.getProduct().getName() : "Unknown Product"))
+                .productName(item.getProductName() != null ? item.getProductName()
+                        : (item.getProduct() != null ? item.getProduct().getName() : "Unknown Product"))
                 .productImageUrl(item.getProduct() != null ? item.getProduct().getImageUrl() : null)
                 .quantity(item.getQuantity())
                 .unitPrice(item.getUnitPrice())

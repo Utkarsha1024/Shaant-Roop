@@ -15,7 +15,7 @@ const IS_SERVER = typeof window === "undefined";
 
 const API_BASE_URL = IS_SERVER
   ? "http://backend:8085"                                         // Server-Side (Docker Internal Network)
-  : (process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8085"); // Client-Side (Phone/Mac Browser)
+  : (process.env.NEXT_PUBLIC_API_URL || process.env.NEXT_PUBLIC_API_BASE_URL || "http://localhost:8085"); // Client-Side (Phone/Mac Browser)
 // ──────────────────────────────────────────────────────────────────────
 
 /**

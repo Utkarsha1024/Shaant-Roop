@@ -71,11 +71,10 @@ services:
     build:
       context: ./shaantroop-web
       dockerfile: Dockerfile
-      target: builder # Target builder stage for dev tools (node, npm)
+      target: builder
       args:
-        # Bake the correct backend URL into the static bundle at image build time
-        # THIS is the magic line that fixes the phone view!
-        NEXT_PUBLIC_API_URL: http://192.168.1.3:8085
+        # Change this line from 192.168.1.3 to localhost
+        NEXT_PUBLIC_API_URL: http://localhost:8085
         NEXT_PUBLIC_GOOGLE_CLIENT_ID: ${GOOGLE_CLIENT_ID:-}
     container_name: shaantroop_frontend
     restart: unless-stopped

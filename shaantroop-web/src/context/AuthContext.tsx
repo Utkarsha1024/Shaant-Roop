@@ -45,10 +45,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const logout = useCallback(() => {
+    // Nuke the Next.js middleware cookie client-side
+    document.cookie = "shaantroop_token=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/;";
+
+    // Clear local storage state
     localStorage.removeItem(USER_KEY);
     localStorage.removeItem("shaantroop_token");
-    // Also clear the HttpOnly cookie via a server action / API call if needed
-    // For now, redirect to login which will clear state
+
+    // Clear React state and redirect
     setUser(null);
     router.push("/login");
   }, [router]);

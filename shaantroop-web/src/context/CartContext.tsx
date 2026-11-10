@@ -1,6 +1,6 @@
 "use client";
 
-import { createContext, useContext, useEffect, useReducer, type ReactNode } from "react";
+import { createContext, useContext, useEffect, useReducer, useState, type ReactNode } from "react";
 import type { Product } from "@/lib/types";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
@@ -26,6 +26,7 @@ interface CartContextValue {
   items: CartItem[];
   totalItems: number;
   totalPrice: number;
+  isHydrated: boolean;
   addToCart: (product: Product) => void;
   removeFromCart: (productId: number) => void;
   increment: (productId: number) => void;
@@ -100,6 +101,7 @@ const STORAGE_KEY = "shaantroop_cart";
 
 export function CartProvider({ children }: { children: ReactNode }) {
   const [state, dispatch] = useReducer(cartReducer, { items: [] });
+  const [isHydrated, setIsHydrated] = useState(false);
 
   // Hydrate from localStorage on first mount
   useEffect(() => {
@@ -113,17 +115,20 @@ export function CartProvider({ children }: { children: ReactNode }) {
       }
     } catch {
       // Silently ignore corrupt storage
+    } finally {
+      setIsHydrated(true);
     }
   }, []);
 
-  // Persist to localStorage on every change
+  // Persist to localStorage on every change (guarded by isHydrated to avoid wiping storage on mount)
   useEffect(() => {
+    if (!isHydrated) return;
     try {
       localStorage.setItem(STORAGE_KEY, JSON.stringify(state.items));
     } catch {
       // Silently ignore storage quota errors
     }
-  }, [state.items]);
+  }, [state.items, isHydrated]);
 
   const totalItems = state.items.reduce((sum, i) => sum + i.quantity, 0);
   const totalPrice = state.items.reduce(
@@ -135,6 +140,7 @@ export function CartProvider({ children }: { children: ReactNode }) {
     items: state.items,
     totalItems,
     totalPrice,
+    isHydrated,
     addToCart: (product) => dispatch({ type: "ADD", product }),
     removeFromCart: (productId) => dispatch({ type: "REMOVE", productId }),
     increment: (productId) => dispatch({ type: "INCREMENT", productId }),

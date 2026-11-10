@@ -113,7 +113,7 @@ export default function AdminProductsPage() {
         stockQuantity: newStock,
         imageUrl: product.imageUrl,
         categoryId: product.categoryId,
-        isActive: true,
+        discontinued: product.discontinued ?? false,
       });
       setProducts((prev) =>
         prev.map((p) => (p.id === id ? updatedProduct : p))

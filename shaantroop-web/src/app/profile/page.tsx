@@ -104,6 +104,7 @@ export default function ProfilePage() {
         city: updated.city ?? "",
         state: updated.state ?? "",
         country: updated.country ?? "",
+        dateOfBirth: updated.dateOfBirth ?? "",
       });
       setMessage({ type: "success", text: "Profile saved successfully!" });
     } catch {

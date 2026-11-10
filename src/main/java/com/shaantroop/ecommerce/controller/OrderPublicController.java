@@ -3,7 +3,6 @@ package com.shaantroop.ecommerce.controller;
 import com.shaantroop.ecommerce.dto.OrderDTO;
 import com.shaantroop.ecommerce.dto.OrderRequestDTO;
 import com.shaantroop.ecommerce.service.OrderService;
-import com.shaantroop.ecommerce.security.JwtService;
 import jakarta.validation.Valid;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -17,23 +16,26 @@ import java.util.List;
 public class OrderPublicController {
 
     private final OrderService orderService;
-    private final JwtService jwtService;
 
-    public OrderPublicController(OrderService orderService, JwtService jwtService) {
+    public OrderPublicController(OrderService orderService) {
         this.orderService = orderService;
-        this.jwtService = jwtService;
     }
 
+    /**
+     * Creates an order.
+     * <p>
+     * If the caller is authenticated (via HttpOnly cookie OR Bearer header),
+     * Spring Security populates {@code Principal} automatically through
+     * {@link com.shaantroop.ecommerce.security.JwtAuthenticationFilter}.
+     * For guest checkouts the endpoint is permitAll(), so {@code principal}
+     * will be {@code null}.
+     */
     @PostMapping
     public ResponseEntity<OrderDTO> createOrder(
             @Valid @RequestBody OrderRequestDTO request,
-            @RequestHeader(value = "Authorization", required = false) String authHeader) {
-        
-        String username = null;
-        if (authHeader != null && authHeader.startsWith("Bearer ")) {
-            String token = authHeader.substring(7);
-            username = jwtService.extractUsername(token);
-        }
+            Principal principal) {
+
+        String username = (principal != null) ? principal.getName() : null;
 
         OrderDTO createdOrder = orderService.createOrder(request, username);
         return new ResponseEntity<>(createdOrder, HttpStatus.CREATED);

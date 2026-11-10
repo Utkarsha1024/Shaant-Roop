@@ -44,6 +44,7 @@ public class Product {
     private LocalDateTime updatedAt;
 
     @Column(name = "discontinued", nullable = false)
+    @Builder.Default
     private boolean discontinued = false;
 
     @PrePersist

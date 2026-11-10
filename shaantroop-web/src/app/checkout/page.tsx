@@ -459,7 +459,8 @@ export default function CheckoutPage() {
 
       const token = localStorage.getItem('shaantroop_token');
 
-      const res = await fetch('http://localhost:8085/api/orders', {
+      const apiBase = process.env.NEXT_PUBLIC_API_URL || process.env.NEXT_PUBLIC_API_BASE_URL || "http://localhost:8085";
+      const res = await fetch(`${apiBase}/api/orders`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
